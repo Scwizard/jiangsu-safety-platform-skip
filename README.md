@@ -1,5 +1,6 @@
 # ”2025江苏省大学新生安全知识教育“一键完成脚本
 jiangsu-safety-platform-skip
+
 **🤔 食用指导**
 
 1.安装 Python3 ，并且确保安装了这三个库： requests ， sqlite3 和 json。
