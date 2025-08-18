@@ -100,4 +100,4 @@ end_time = time.time()
 elapsed_ms = (end_time - start_time) * 1000
 print(f"execute time: {elapsed_ms:.3f} ms.")
 print("脚本作者:南晓25届新生Scwizard b站同名")
-print("程序结束，感谢使用!")
+input("程序结束，感谢使用!")
