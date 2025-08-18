@@ -2,6 +2,7 @@ import time
 import utils
 import requests
 import json
+import os
 
 # “2025江苏省大学新生安全知识教育”一键完成脚本
 # Scwizard/HAM:BA4TLH
