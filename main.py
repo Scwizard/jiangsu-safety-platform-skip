@@ -12,6 +12,11 @@ import json
 
 print("本脚本开源免费，禁止倒卖。")
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_dir)
+print("切换到工作目录：", os.getcwd())
+# 修一下目录问题
+
 userId = input("请输入userId：")
 start_time = time.time()
 # 别问为什么是中文 问就是我想不出来什么奇怪的英文变量名了
@@ -38,6 +43,8 @@ for i in course:
         print("第%s课 %s 未完成" % (j, i["name"]))
     j += 1
 
+process = ()
+# 保留一个turple 但这个东西不太好搞 且没啥实质影响 就不搞了()
 requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=题库学习).text
 print("正在完成题库学习...")
 requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=国家安全).text
