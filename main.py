@@ -86,6 +86,13 @@ print("取得考题列表，正在从数据库中读取答案然后整合...")
 questions = examList["data"]["data"]
 questionList = []
 data = utils.getExamId(userId)
+if data["code"] == 500:
+    print("""出错了！你的账号未完成内容学习，可能由以下几点原因导致
+        1.你所在学校不属于江苏省
+        2.脚本题库出错
+        3.平台更新""")
+    print("程序已自动结束，非常抱歉给您带来不便，您可以联系脚本作者！")
+    exit(1)
 examId = data["data"]["id"]
 for i in range(0,50):
     questionList.append(questions[i]["questionId"])
