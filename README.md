@@ -1,6 +1,8 @@
 # ”2025江苏省大学新生安全知识教育“一键完成脚本
 jiangsu-safety-platform-skip
 
+**<font color="red">此项目严禁用于盈利</font>**
+
 **🤔 食用指导**
 
 1.安装 Python3 ，并且确保安装了这个额外的库： requests 。
