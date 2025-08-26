@@ -32,6 +32,7 @@ start_time = time.time()
 应急救护 = {"articleId":"1493144873958653953","title":"应急救护","userId":userId,"ah":"","question":"~1810585965882793986-A~1810585965882793986-B~1810585965882793986-C~1810585965882793986-D","quesType":"2"}
 防灾减灾 = {"articleId":"1810496679200198657","title":"防灾减灾","userId":userId,"ah":"","question":"1810587849070764033-A","quesType":"1"}
 
+
 res = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list", data={"userId":userId,"collegeId":"1224316234189443073"}).text
 data = json.loads(res)
 print("课程完成度查询(开始)：")
