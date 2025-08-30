@@ -7,6 +7,8 @@ import requests
 # 还要多久我才能在你身边
 # 等到放晴的那天也许我会比较好一点
 
+# no result... 2025.08.29
+
 def getAllSchools():
     """
     获取到学校列表
@@ -85,7 +87,7 @@ def getExam(logId,userId):
 
 def getAnswerById(id):
     # 从数据库获取答案然后组装元组
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
     
     cursor.execute(f'''
@@ -141,3 +143,7 @@ def imitateExam(examId,logId,userId,answers):
     # 构造提交考试请求：examId=1948924196784492546&examType=2&sysSource=20&logId=1956159499542806530&userId=1955967136757313538&ah=
     result = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/imitateTest", data=data, headers=headers)
     return result
+
+def finishCourse(courseData):
+    requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=courseData).text
+    return True
