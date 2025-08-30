@@ -36,8 +36,6 @@ data = json.loads(res)
 print("课程完成度查询(开始)：")
 course = data["data"]
 j = 1
-process = ()
-# 保留一个turple 但这个东西不太好搞 且没啥实质影响 就不搞了()
 for i in course:
     if i["isFinsh"] == True:
         print("第%i课 %s 已完成" % (j, i["name"]))
