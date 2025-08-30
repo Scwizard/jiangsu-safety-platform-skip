@@ -140,7 +140,7 @@ def imitateExam(examId,logId,userId,answers):
         ("ah",""),
         ]
     data += answers
-    # 构造提交考试请求：examId=1948924196784492546&examType=2&sysSource=20&logId=1956159499542806530&userId=1955967136757313538&ah=
+    # 构造提交考试请求：examId=&examType=2&sysSource=20&logId=&userId=&ah=
     result = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/imitateTest", data=data, headers=headers)
     return result
 
