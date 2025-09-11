@@ -13,7 +13,7 @@ def getAllSchools():
     """
     获取到学校列表
     """
-    raw = requests.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/proCollege?provincesName=浙江省")
+    raw = requests.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/proCollege?provincesName=江苏省")
     return raw.text
 
 def getFacultyBySchoolId(id):
