@@ -3,6 +3,7 @@ import time
 import utils
 import requests
 import json
+import re
 
 # “2025江苏省大学新生安全知识教育”一键完成脚本
 # Scwizard/HAM:BA4TLH
@@ -19,51 +20,36 @@ print("切换到工作目录：", os.getcwd())
 
 userId = input("请输入userId：")
 start_time = time.time()
-# 别问为什么是中文 问就是我想不出来什么奇怪的英文变量名了
-题库学习 = {"articleId":"1672768716061863938","title":"题库学习","userId":userId,"ah":"","question":"1677233633049554945-1","quesType":"3"}
-入学安全 = {"articleId":"1493130725405294593","title":"入学安全","userId":userId,"ah":"","question":"1677226064641896450-A","quesType":"1"}
-国家安全 = {"articleId":"1493144962773041153","title":"国家安全","userId":userId,"ah":"","question":"~1677237820399398914-A~1677237820399398914-B~1677237820399398914-C","quesType":"2"}
-财物安全 = {"articleId":"1493144438782836737","title":"财物安全","userId":userId,"ah":"","question":"1677246774982586370-0","quesType":"3"}
-心理健康 = {"articleId":"1493144798591205378","title":"心理健康","userId":userId,"ah":"","question":"1677248976384012289-A","quesType":"1"}
-消防安全 = {"articleId":"1493144639081824257","title":"消防安全","userId":userId,"ah":"","question":"1677231441840287746-1","quesType":"3"}
-人身安全 = {"articleId":"1493144727023796226","title":"人身安全","userId":userId,"ah":"","question":"1677234520794968065-1","quesType":"3"}
-交通安全 = {"articleId":"1672797851245158401","title":"交通安全","userId":userId,"ah":"","question":"1677236377873395714-C","quesType":"1"}
-应急救护 = {"articleId":"1493144873958653953","title":"应急救护","userId":userId,"ah":"","question":"~1810585965882793986-A~1810585965882793986-B~1810585965882793986-C~1810585965882793986-D","quesType":"2"}
-防灾减灾 = {"articleId":"1810496679200198657","title":"防灾减灾","userId":userId,"ah":"","question":"1810587849070764033-A","quesType":"1"}
 
-res = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list", data={"userId":userId,"collegeId":"1224316234189443073"}).text
-data = json.loads(res)
+home = requests.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/home", params={"userid": userId}).text
+pattern = r'<input[^>]*id="collegeId"[^>]*value="([^"]+)"'
+match_result = re.search(pattern, home, re.IGNORECASE)
+if match_result:
+    collegeId = match_result.group(1)
+else:
+    print("未找到collegeId")
+    collegeId = None
+
+compulsory = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list", data={"userId": userId, "collegeId": collegeId}).json()
 print("课程完成度查询(开始)：")
-course = data["data"]
+
 j = 1
-for i in course:
-    if i["isFinsh"] == True:
+for i in compulsory["data"]:
+    if i["isFinsh"]:
         print("第%i课 %s 已完成" % (j, i["name"]))
     else:
         print("第%i课 %s 未完成" % (j, i["name"]))
+        directory = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/directory/list", data={"courseId": i["id"], "userId": userId, "collegeId": collegeId}).json()
+        for k in directory["data"]:
+            if not k["isFinsh"]:
+                print(f"{k['name']} 未完成")
+                for l in k["list"]:
+                    print(f"正在完成 {l['course']}...")
+                    test = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data={"articleId": l["id"], "title": l["course"], "userId": userId, "ah": "", "question": "1677233633049554945-1", "quesType": "3"}).text
     j += 1
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=题库学习).text
-print("正在完成题库学习...")
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=入学安全).text
-print("正在完成入学安全...")
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=国家安全).text
-print("正在完成国家安全...")
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=财物安全).text
-print("正在完成财物安全...")
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=心理健康).text
-print("正在完成心理健康...")
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=消防安全).text
-print("正在完成消防安全...")
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=人身安全).text
-print("正在完成人身安全...")
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=交通安全).text
-print("正在完成交通安全...")
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=应急救护).text
-print("正在完成应急救护...")
-requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=防灾减灾).text
-print("正在完成防灾减灾...")
+
 print("课程完成度查询(完成)：")
-res = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list",data={"userId":userId,"collegeId":"1224316234189443073"}).text
+res = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list", data={"userId": userId, "collegeId": collegeId}).text
 data = json.loads(res)
 course = data["data"]
 j = 1
@@ -75,15 +61,15 @@ for i in course:
     j += 1
 print("完成课程学习")
 print("正在进行考试流程...")
-logId = utils.creatExam(userId)["data"]["logId"]
+data = utils.getExamId(userId)
+examId = data["data"]["id"]
+logId = utils.creatExam(examId, userId)["data"]["logId"]
 print("取得logId %s" % logId)
 examList = utils.getExam(logId=logId, userId=userId)
 print("取得考题列表，正在从数据库中读取答案然后整合...")
 questions = examList["data"]["data"]
 questionList = []
-data = utils.getExamId(userId)
-examId = data["data"]["id"]
-for i in range(0,50):
+for i in range(0, 50):
     questionList.append(questions[i]["questionId"])
 answers = ()
 for i in questionList:

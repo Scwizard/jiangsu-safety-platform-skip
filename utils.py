@@ -13,7 +13,7 @@ def getAllSchools():
     """
     获取到学校列表
     """
-    raw = requests.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/proCollege?provincesName=江苏省")
+    raw = requests.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/proCollege?provincesName=浙江省")
     return raw.text
 
 def getFacultyBySchoolId(id):
@@ -75,9 +75,9 @@ def processData():
         f.write('"}')
         f.close()
     
-def creatExam(userId):
+def creatExam(examId, userId):
     # 创建考试方法
-    result = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/create",data={"examId":"1948924196784492546","userId":userId}).text
+    result = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/create",data={"examId": examId,"userId":userId}).text
     return json.loads(result)
 
 def getExam(logId,userId):
@@ -102,8 +102,8 @@ def getAnswerById(id):
     
     # 没有对应答案
     if not records:
-        return ""
-    
+        return ("question", "1677233633049554945-1"), ("questionId", "1677233633049554945"), ("quesType", "3")
+
     quesType = records[0][2]
     if quesType == "2":
         # 多选
@@ -122,7 +122,7 @@ def getAnswerById(id):
     # return "&question=%s&questionId=%s&quesTpe=%s"%(question,records[0][0],quesType)
 
 def getExamId(userId):
-    res = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/getTest",data={"examType":2,"examClass":20,"userId":userId,"ah":""})
+    res = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/getTest",data={"examType":2,"examClass":10,"userId":userId,"ah":""})
     jsonData = json.loads(res.text)
     return jsonData
 
