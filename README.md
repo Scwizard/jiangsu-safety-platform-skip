@@ -1,6 +1,8 @@
 # ”2025江苏省大学新生安全知识教育“一键完成脚本
 jiangsu-safety-platform-skip
 
+**如需2026年的可以联系作者更新（他们今年好像做了新的反爬）**
+
 **<font color="red">此项目严禁用于盈利</font>**
 
 **🤔 食用指导**
@@ -21,4 +23,4 @@ jiangsu-safety-platform-skip
 
 欢迎提交 Issue 来交换您的看法和对脚本的更多建议！
 
-——南晓25届新生 Scwizard
+——南京晓庄学院 Scwizard
