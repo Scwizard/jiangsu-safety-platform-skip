@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import requests
+import os
 
 # 刮风这天我试过握着你手
 # 但偏偏雨渐渐大到我看你不见
@@ -86,8 +87,9 @@ def getExam(logId,userId):
     return json.loads(result)
 
 def getAnswerById(id):
+    # print(f"查询 {id}")
     # 从数据库获取答案然后组装元组
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(os.path.abspath('database.db')) # 2026 修复路径问题，解决找不到tiku的报错
     cursor = conn.cursor()
     
     cursor.execute(f'''
@@ -102,7 +104,9 @@ def getAnswerById(id):
     
     # 没有对应答案
     if not records:
+        print("没找到答案")
         return ""
+    print(f"从题库查询题目 {id} 类型 {records[0][2]} -> 答案 {records[0][1]}")
     
     quesType = records[0][2]
     if quesType == "2":
@@ -140,10 +144,27 @@ def imitateExam(examId,logId,userId,answers):
         ("ah",""),
         ]
     data += answers
-    # 构造提交考试请求：examId=&examType=2&sysSource=20&logId=&userId=&ah=
+    # 构造提交考试请求：examId=1948924196784492546&examType=2&sysSource=20&logId=1956159499542806530&userId=1955967136757313538&ah=
     result = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/imitateTest", data=data, headers=headers)
     return result
 
-def finishCourse(courseData):
-    requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=courseData).text
-    return True
+def end(code: int):
+    input()
+    exit(code)
+
+def upload_stats(score, execute_time):
+    """
+    脚本用量统计，我们只保存您的脚本最终得分和运行时长，不会记录浏览器指纹、IP地址、客户端信息等内容
+    如果您不想开启此功能，请在 main.py 的开始位置把 STATS = True 改成 STATS = False
+    """
+    url = "http://101.133.233.225:81/result_update"
+
+    payload = {
+        "score": score,
+        "runtime_ms": execute_time
+    }
+
+    resp = requests.post(url, json=payload, timeout=3)
+    return resp.json()
+    # Example return: 
+    # {'status': 'ok', 'message': '记录成功', 'data': {'count': 1, 'score': 100.0, 'runtime_ms': 2369.517}}
