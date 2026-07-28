@@ -122,8 +122,7 @@ print("脚本作者:南晓 Scwizard b站同名")
 if STATS == True:
     try:
         res = utils.upload_stats(score, round(elapsed_ms, 3))
-        print("脚本统计已上传，只记录分数和运行时长，不会保存您的IP地址与设备信息，您可以在脚本开头选择是否开启该功能")
-        print(res)
+        print("脚本统计执行成功")
     except:
         print("脚本统计未被上传")
 input("程序结束，感谢使用!")
