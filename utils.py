@@ -10,11 +10,11 @@ import os
 
 # no result... 2025.08.29
 
-def getAllSchools():
+def getAllSchools(province):
     """
     获取到学校列表
     """
-    raw = requests.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/proCollege?provincesName=江苏省")
+    raw = requests.get(f"http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/proCollege?provincesName={province}")
     return raw.text
 
 def getFacultyBySchoolId(id):
@@ -50,6 +50,151 @@ def regMethod(name, collegeId, facultyId, classId, account):
         "success":true
     }
     """
+
+def getUserSchool():
+    """
+    [+] 2026
+    通过让用户提供关键词，获取用户的 collegeId 实现登录
+    """
+    schoolKey = input("请输入学校名称[关键词也可以]：").strip()
+    try:
+        schoolList = json.loads(getAllSchools("江苏省"))
+    except:
+        print("错误：网络异常")
+        end(1)
+    schoolLs = []
+    for _ in schoolList['data']:
+        if schoolKey in _['name']:
+            schoolLs.append(_['name'])
+    if schoolLs == []:
+        print("未查找到任何学校，请重新输入")
+        getUserSchool()
+        return
+    else:
+        if len(schoolLs) == 1:
+            # 精准匹配
+            for _ in schoolList['data']:
+                if _['name'] == schoolLs[0]:
+                    print(f"已获取学校id：{_['id']}")
+                    return _['id']
+        else:
+            # 关键词序号匹配
+            print("查找到以下学校：")
+            i = 0
+            for _ in schoolLs:
+                print(f"[{i}] {_}")
+            try:
+                n = int(input("请输入数字序号来选择学校："))
+            except:
+                print("您的输入有误，请重新输入")
+                getUserSchool()
+                return
+            schoolName = schoolLs[n]
+            for _ in schoolList['data']:
+                    if _['name'] == schoolName:
+                        print(f"已获取学校id：{_['id']}")
+                        return _['id']
+
+
+def loginMethod(username, password, collegeId):
+    """
+    [+] 2026
+    重写的登陆函数
+    返回样例：
+        {
+        "code":200,
+        "data":{
+            "account":"******",
+            "area":"",
+            "auth":"b12f***********************653ba",
+            "avatar":"",
+            "birthday":"",
+            "classId":"*******************",
+            "className":"",
+            "collegeId":"*******************",
+            "collegeName":"",
+            "createTime":"2026-07-28 16:23:26",
+            "createUser":"*******************",
+            "deptId":"*******************",
+            "email":"",
+            "facultyId":"*******************",
+            "ipAddress":"49.**.***.46",
+            "loginNum":3,
+            "name":"****",
+            "openId":"****************************",
+            "password":"",
+            "phone":"",
+            "roleId":"*******************",
+            "salt":"9a5sr",
+            "sex":"",
+            "status":"ENABLE",
+            "sysSource":"20",
+            "updateTime":"2026-07-29 09:58:58",
+            "updateUser":-100,
+            "userId":"*******************",
+            "version":""
+        },
+        "message":"\u8BF7\u6C42\u6210\u529F",
+        "success":true
+    }
+    """
+    cookies = {}
+
+    headers = {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Connection': 'keep-alive',
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'Origin': 'http://wap.xiaoyuananquantong.com',
+        'Referer': 'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/jiangsuwxJsback',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 16; MEIZU 20 Pro Build/BQ2A.251110.001-BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/146.0.7680.178 Mobile Safari/537.36 XWEB/1460249 MMWEBSDK/20260202 MMWEBID/3950 REV/6666666666666666666666666666666666666666 MicroMessenger/8.0.71.3080(0x28004750) WeChat/arm64 Weixin NetType/5G Language/zh_CN ABI/arm64',
+        'X-Requested-With': 'XMLHttpRequest',
+    }
+
+    data = {
+        'openId': '',
+        'account': f'{username}',
+        'collegeId': f'{collegeId}',
+        'password': f'{password}',
+    }
+
+    response = requests.post(
+        'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/jsUserLogin',
+        cookies=cookies,
+        headers=headers,
+        data=data,
+        verify=False,
+    )
+    return json.loads(response.text)
+
+def UntyingMethod(userid):
+    """
+    微信解绑，没有鉴权，真搞不明白他设置那个ah的作用是啥
+    """
+    cookies = {}
+
+    headers = {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Connection': 'keep-alive',
+        'Referer': 'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/jspersonal',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 16; MEIZU 20 Pro Build/BQ2A.251110.001-BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/146.0.7680.178 Mobile Safari/537.36 XWEB/1460249 MMWEBSDK/20260202 MMWEBID/3950 REV/6666666666666666666666666666666666666666 MicroMessenger/8.0.71.3080(0x28004750) WeChat/arm64 Weixin NetType/5G Language/zh_CN ABI/arm64',
+        'X-Requested-With': 'XMLHttpRequest',
+    }
+
+    params = {
+        'userId': f'{userid}',
+    }
+
+    response = requests.get(
+        'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/JsUntying',
+        params=params,
+        cookies=cookies,
+        headers=headers,
+        verify=False,
+    )
+    return json.loads(response.text)
+
 
 def processData():
     """
