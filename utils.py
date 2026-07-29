@@ -83,6 +83,7 @@ def getUserSchool():
             i = 0
             for _ in schoolLs:
                 print(f"[{i}] {_}")
+                i += 1
             try:
                 n = int(input("请输入数字序号来选择学校："))
             except:
