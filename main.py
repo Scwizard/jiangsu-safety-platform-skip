@@ -21,7 +21,7 @@ os.chdir(script_dir)
 print("切换到工作目录：", os.getcwd())
 # 修一下目录问题
 # 2026 的时候回来发现还有一些历史遗留问题，需要解决，比如数据库的路径
-
+print("您正在运行：userId版")
 userId = input("请输入userId：")
 try:
     int(userId)
