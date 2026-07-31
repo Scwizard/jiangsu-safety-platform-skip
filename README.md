@@ -1,4 +1,5 @@
 # ”2026江苏省大学新生安全知识教育“一键完成脚本
+
 jiangsu-safety-platform-skip
 
 **🤔 食用指导**
@@ -24,3 +25,7 @@ jiangsu-safety-platform-skip
 👌 **给我捐点**
 
 ![donation](https://raw.githubusercontent.com/Scwizard/jiangsu-safety-competition/refs/heads/main/donation.jpg)
+
+📊 **统计数据**
+
+![stats](http://101.133.233.225:81/chart)
