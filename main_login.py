@@ -4,7 +4,7 @@ import requests
 import json
 import os
 
-# “2026江苏省大学新生安全知识教育”一键完成脚本
+# “2026江苏省大学新生安全知识教育”一键完成脚本 (登录版)
 # Scwizard/HAM:BA4TLH
 # 2025/08/14 (Rebuild at 2026/07/25)
 
@@ -21,13 +21,18 @@ os.chdir(script_dir)
 print("切换到工作目录：", os.getcwd())
 # 修一下目录问题
 # 2026 的时候回来发现还有一些历史遗留问题，需要解决，比如数据库的路径
-print("您正在运行：userId版")
-userId = input("请输入userId：")
-try:
-    int(userId)
-except:
-    print("err: 你输入了错误的user_id，user_id通常是一个19位长的纯数字，请检查输入是否正确。")
+print("您正在运行：登录版")
+collegeId = utils.getUserSchool()
+username = str(input("请输入账号：").strip())
+password = str(input("请输入密码：").strip())
+
+loginResult = utils.loginMethod(username, password, collegeId)
+if loginResult['success'] == False:
+    print("登录失败，请检查账号密码和学校是否正确")
     utils.end(1)
+openId = loginResult['data']['openId']
+userId = loginResult['data']['userId']
+print(f"获取到了userId {userId}，开始执行脚本")
 start_time = time.time() # 计时器，启动！
 tiku1 = {"articleId":"2080135073788600321","title":"题库学习","userId":userId,"ah":"","question":"2080136617019842561-1","quesType":"3"}
 tiku2 = {"articleId":"2079132357549375490","title":"入学安全","userId":userId,"ah":"","question":"2079154657984266242-1","quesType":"3"}
@@ -115,6 +120,10 @@ if int(score) != 100:
     print("没到100分，这是一个历史遗留问题，重刷一次就行了，因为题库录入的时候有一题出错了。")
 else:
     print(f"前往 http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId} 下载结课证书")
+
+print("正在解绑openId并退出登录...")
+res = utils.UntyingMethod(userId)
+print(res)
 end_time = time.time()
 elapsed_ms = (end_time - start_time) * 1000
 print(f"execute time: {elapsed_ms:.3f} ms.")
@@ -122,7 +131,8 @@ print("脚本作者:南晓 Scwizard b站同名")
 if STATS == True:
     try:
         res = utils.upload_stats(score, round(elapsed_ms, 3))
-        print("脚本统计执行成功")
+        print("脚本统计已上传，只记录分数和运行时长，不会保存您的IP地址与设备信息，您可以在脚本开头选择是否开启该功能")
+        print(res)
     except:
         print("脚本统计未被上传")
 input("程序结束，感谢使用!")
