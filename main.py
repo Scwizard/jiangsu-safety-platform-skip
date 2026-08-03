@@ -61,25 +61,29 @@ for i in course:
     j += 1
 print("完成课程学习")
 print("正在进行考试流程...")
-data = utils.getExamId(userId)
-examId = data["data"]["id"]
-logId = utils.creatExam(examId, userId)["data"]["logId"]
-print("取得logId %s" % logId)
-examList = utils.getExam(logId=logId, userId=userId)
-print("取得考题列表，正在从数据库中读取答案然后整合...")
-questions = examList["data"]["data"]
-questionList = []
-for i in range(0, 50):
-    questionList.append(questions[i]["questionId"])
-answers = ()
-for i in questionList:
-    answers += utils.getAnswerById(i)
-print("答案已生成，正在执行imitateExam提交答案...")
-res = utils.imitateExam(examId, logId, userId, answers)
-# 好长一个元组...
-print(res.text)
-res = json.loads(res.text)
-print("得分：%s" % res["data"]["count"])
+for examClass in [10, 20]:
+    data = utils.getExamId(userId, examClass=examClass)
+    if not data["success"]:
+        print("获取考试ID失败，跳过该类考试")
+        continue
+    examId = data["data"]["id"]
+    logId = utils.creatExam(examId, userId)["data"]["logId"]
+    print("取得logId %s" % logId)
+    examList = utils.getExam(logId=logId, userId=userId)
+    print("取得考题列表，正在从数据库中读取答案然后整合...")
+    questions = examList["data"]["data"]
+    questionList = []
+    for i in range(0, 50):
+        questionList.append(questions[i]["questionId"])
+    answers = ()
+    for i in questionList:
+        answers += utils.getAnswerById(i)
+    print("答案已生成，正在执行imitateExam提交答案...")
+    res = utils.imitateExam(examId, logId, userId, answers)
+    # 好长一个元组...
+    print(res.text)
+    res = json.loads(res.text)
+    print("得分：%s" % res["data"]["count"])
 end_time = time.time()
 elapsed_ms = (end_time - start_time) * 1000
 print(f"execute time: {elapsed_ms:.3f} ms.")

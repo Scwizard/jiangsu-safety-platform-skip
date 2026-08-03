@@ -121,8 +121,8 @@ def getAnswerById(id):
     # 保留了另一种构建完整请求体的方法 ↓↓↓
     # return "&question=%s&questionId=%s&quesTpe=%s"%(question,records[0][0],quesType)
 
-def getExamId(userId):
-    res = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/getTest",data={"examType":2,"examClass":10,"userId":userId,"ah":""})
+def getExamId(userId, examClass=20):
+    res = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/getTest",data={"examType":2,"examClass":examClass,"userId":userId,"ah":""})
     jsonData = json.loads(res.text)
     return jsonData
 
