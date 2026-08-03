@@ -81,40 +81,47 @@ else:
         j += 1
     print("已完成课程学习")
 print("正在进入考试流程...")
-logId = utils.creatExam(userId)["data"]["logId"]
-print("取得logId %s" % logId)
-examList = utils.getExam(logId=logId, userId=userId)
-print("取得考题列表，正在从数据库中读取答案然后整合...")
-questions = examList["data"]["data"]
-questionList = []
-data = utils.getExamId(userId)
-if data["code"] == 500:
-    print("""出错了！你的账号未完成内容学习，可能由以下几点原因导致
+# 本地增强：兼容 examClass 10/20 两类考试，一类不通过自动尝试另一类
+finished = False
+for examClass in [10, 20]:
+    data = utils.getExamId(userId, examClass=examClass)
+    if data["code"] == 500:
+        print(f"examClass {examClass} 获取考试ID失败（未完成学习/不属于江苏省/平台更新），跳过")
+        continue
+    examId = data["data"]["id"]
+    logId = utils.creatExam(examId, userId)["data"]["logId"]
+    print("取得logId %s" % logId)
+    examList = utils.getExam(logId=logId, userId=userId)
+    print("取得考题列表，正在从数据库中读取答案然后整合...")
+    questions = examList["data"]["data"]
+    questionList = []
+    for i in range(0,50):
+        questionList.append(questions[i]["questionId"])
+    answers = ()
+    for i in questionList:
+        try:
+            answers += utils.getAnswerById(i)
+        except:
+            print("err: 数据库读写错误")
+            utils.end(1)
+    print("答案已生成，正在执行imitateExam提交答案...")
+    res = utils.imitateExam(examId, logId, userId, answers)
+    # print(res.text)
+    res = json.loads(res.text)
+    score = res["data"]["count"]
+    print(f'得分：{score}')
+    if int(score) == 100:
+        finished = True
+        break
+    print(f"examClass {examClass} 没到100分，这是一个历史遗留问题，继续尝试下一类考试")
+if not finished:
+    print("""出错了！所有考试均未完成，可能由以下几点原因导致
         1.你所在学校不属于江苏省
         2.脚本题库出错
         3.平台更新""")
     print("程序已自动结束，非常抱歉给您带来不便，您可以联系脚本作者！")
     utils.end(1)
-examId = data["data"]["id"]
-for i in range(0,50):
-    questionList.append(questions[i]["questionId"])
-answers = ()
-for i in questionList:
-    try:
-        answers += utils.getAnswerById(i)
-    except:
-        print("err: 数据库读写错误")
-        utils.end(1)
-print("答案已生成，正在执行imitateExam提交答案...")
-res = utils.imitateExam(examId, logId, userId, answers)
-# print(res.text)
-res = json.loads(res.text)
-score = res["data"]["count"]
-print(f'得分：{score}')
-if int(score) != 100:
-    print("没到100分，这是一个历史遗留问题，重刷一次就行了，因为题库录入的时候有一题出错了。")
-else:
-    print(f"前往 http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId} 下载结课证书")
+print(f"前往 http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId} 下载结课证书")
 end_time = time.time()
 elapsed_ms = (end_time - start_time) * 1000
 print(f"execute time: {elapsed_ms:.3f} ms.")
