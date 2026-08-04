@@ -241,8 +241,8 @@ class App(tk.Tk):
         except engine.EngineError as e:
             self.queue.put(("done", ("error", str(e))))
         except Exception as e:
-            import traceback
-            self.queue.put(("done", ("error", "%s\n%s" % (e, traceback.format_exc()))))
+            # 只展示异常类型与消息，避免向用户泄露内部路径/接口结构
+            self.queue.put(("done", ("error", "%s: %s" % (type(e).__name__, e))))
 
     def _stop(self):
         if self.cancel_event is not None:

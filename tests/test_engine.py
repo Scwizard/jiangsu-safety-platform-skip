@@ -75,5 +75,17 @@ class LoginTest(unittest.TestCase):
             self.assertEqual(uid, "1951234567890123456")
 
 
+class MaskUserIdTest(unittest.TestCase):
+    def test_mask_long_userid(self):
+        self.assertEqual(engine._mask_userid("1951234567890123456"), "195***456")
+
+    def test_mask_short_userid(self):
+        self.assertEqual(engine._mask_userid("12345"), "12***5")
+
+    def test_mask_empty(self):
+        # 空字符串仅做展示用途，不应抛异常
+        self.assertEqual(engine._mask_userid(""), "***")
+
+
 if __name__ == "__main__":
     unittest.main()

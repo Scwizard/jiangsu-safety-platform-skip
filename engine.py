@@ -194,6 +194,14 @@ def run_by_userid(userId, log=print, check_cancel=None, stats=True):
     return _run_flow(userId.strip(), log, check_cancel, stats, untie=False)
 
 
+def _mask_userid(userId):
+    """对 userId 打码展示（如 195***456），避免日志截屏泄露个人标识。"""
+    s = str(userId)
+    if len(s) <= 6:
+        return s[:2] + "***" + s[-1:]
+    return s[:3] + "***" + s[-3:]
+
+
 def run_by_login(school_id, username, password, log=print, check_cancel=None, stats=True):
     """
     登录版入口。school_id 为学校 collegeId（数字字符串）。
@@ -203,5 +211,5 @@ def run_by_login(school_id, username, password, log=print, check_cancel=None, st
     if login_result.get("success") is not True:
         raise EngineError("登录失败，请检查账号密码和学校是否正确")
     userId = login_result["data"]["userId"]
-    log("获取到了userId %s，开始执行脚本" % userId)
+    log("获取到了userId %s，开始执行脚本" % _mask_userid(userId))
     return _run_flow(userId, log, check_cancel, stats, untie=True)
