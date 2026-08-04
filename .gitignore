@@ -1,0 +1,10 @@
+# PyInstaller 构建产物
+build/
+dist/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 本地工具目录
+.reasonix/
