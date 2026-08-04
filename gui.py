@@ -196,7 +196,9 @@ class App(tk.Tk):
         mode = self.mode_var.get()
         if mode == "userid":
             uid = self.userid_var.get().strip()
-            if not uid or not uid.isdigit():
+            try:
+                int(uid)
+            except (TypeError, ValueError):
                 self._append_log("userId 应为纯数字（19 位左右），请检查输入\n", "error")
                 return
             func = engine.run_by_userid
@@ -219,9 +221,11 @@ class App(tk.Tk):
         self._append_log("开始运行（%s 版）...\n" % ("userId" if mode == "userid" else "登录"))
         self._set_running(True)
         self.cancel_event = threading.Event()
-        threading.Thread(target=self._run_worker, args=(func, kwargs), daemon=True).start()
+        # 主线程读取 Tkinter 变量后再传入工作线程，避免跨线程访问
+        stats = self.stats_var.get()
+        threading.Thread(target=self._run_worker, args=(func, kwargs, stats), daemon=True).start()
 
-    def _run_worker(self, func, kwargs):
+    def _run_worker(self, func, kwargs, stats):
         def log(msg):
             self.queue.put(("log", str(msg) + "\n"))
 
@@ -230,8 +234,7 @@ class App(tk.Tk):
                 raise engine.RunCancelled()
 
         try:
-            result = func(log=log, check_cancel=check_cancel,
-                          stats=self.stats_var.get(), **kwargs)
+            result = func(log=log, check_cancel=check_cancel, stats=stats, **kwargs)
             self.queue.put(("done", ("ok", result)))
         except engine.RunCancelled:
             self.queue.put(("done", ("cancelled", None)))

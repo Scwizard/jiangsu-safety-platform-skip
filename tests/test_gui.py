@@ -8,7 +8,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class GuiImportTest(unittest.TestCase):
     def test_gui_module_imports(self):
-        import gui  # noqa: F401
+        try:
+            import gui  # noqa: F401
+        except ImportError as e:
+            self.skipTest("tkinter 不可用，跳过: %s" % e)
         self.assertTrue(hasattr(gui, "App"))
         self.assertTrue(hasattr(gui, "main"))
 

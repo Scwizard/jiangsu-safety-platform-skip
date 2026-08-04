@@ -31,20 +31,6 @@ def make_post_side_effect():
 
 
 class FullFlowTest(unittest.TestCase):
-    def _common_mocks(self):
-        return [
-            mock.patch("requests.post", side_effect=make_post_side_effect()),
-            mock.patch.object(engine.utils, "creatExam", return_value={"data": {"logId": "123"}}),
-            mock.patch.object(engine.utils, "getExam",
-                              return_value={"data": {"data": [{"questionId": str(i)} for i in range(50)]}}),
-            mock.patch.object(engine.utils, "getExamId", return_value={"code": 200, "data": {"id": "exam1"}}),
-            mock.patch.object(engine.utils, "getAnswerById",
-                              return_value=(("question", "1-A"), ("questionId", "1"), ("quesType", "1"))),
-            mock.patch.object(engine.utils, "imitateExam",
-                              return_value=mock.Mock(text=json.dumps({"data": {"count": 100}}))),
-            mock.patch.object(engine.utils, "upload_stats", return_value={"status": "ok"}),
-        ]
-
     def test_run_by_userid_full_flow(self):
         with mock.patch("requests.post", side_effect=make_post_side_effect()), \
              mock.patch.object(engine.utils, "creatExam", return_value={"data": {"logId": "123"}}), \

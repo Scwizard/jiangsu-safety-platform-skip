@@ -6,7 +6,7 @@ jiangsu-safety-platform-skip
 
 0. **GUI 版（推荐）**：`python gui.py` 直接打开图形界面，同样支持以下两种运行方式，无需手敲命令，运行日志实时显示，可随时停止。仅依赖标准库 `tkinter` 与 `requests`。
 
-0.5 **打包成 exe**：已提供 `build.spec`，执行 `pip install pyinstaller` 后运行 `pyinstaller --clean --noconfirm build.spec`，即可在 `dist/` 目录生成单文件 `江苏省安全教育一键完成.exe`（无需安装 Python 即可双击运行，已内置题库 database.db）。
+0.5 **打包成 exe**：已提供 `build.spec`，执行 `pip install "pyinstaller>=6.3"` 后运行 `pyinstaller --clean --noconfirm build.spec`，即可在 `dist/` 目录生成单文件 `江苏省安全教育一键完成.exe`（无需安装 Python 即可双击运行，已内置题库 database.db）。
 
 1.安装 Python3 ，并且确保安装了这个额外的库： requests 。
 
