@@ -20,7 +20,10 @@ class GuiWindowTest(unittest.TestCase):
     """真实创建/销毁窗口的冒烟测试；无显示环境时跳过。"""
 
     def setUp(self):
-        import gui
+        try:
+            import gui
+        except ImportError as e:  # tkinter 不可用（无 GUI 环境的 CI）
+            self.skipTest("tkinter 不可用，跳过: %s" % e)
         self.gui = gui
 
     def test_window_construct_and_log_roundtrip(self):
