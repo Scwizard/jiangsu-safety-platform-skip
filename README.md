@@ -28,4 +28,4 @@ jiangsu-safety-platform-skip
 
 📊 **统计数据**
 
-![stats](http://101.133.233.225:81/chart?aa=bb)
+![stats](http://101.133.233.225:81/chart?no-cache=true)
