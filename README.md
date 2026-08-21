@@ -33,3 +33,7 @@ jiangsu-safety-platform-skip
 📊 **统计数据**
 
 ![stats](http://101.133.233.225:81/chart)
+
+📄 **许可证**
+
+本项目基于 [MIT License](LICENSE) 开源。
