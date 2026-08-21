@@ -88,5 +88,36 @@ class FullFlowTest(unittest.TestCase):
         self.assertGreaterEqual(calls["check"], 2)
 
 
+class RegressionTest(unittest.TestCase):
+    """回归：缺答案错误透传 + 登录入口接受学校名称。"""
+
+    def test_missing_answer_raises_engine_error_with_question_id(self):
+        with mock.patch("requests.post", side_effect=make_post_side_effect()), \
+             mock.patch.object(engine.utils, "creatExam", return_value={"data": {"logId": "123"}}), \
+             mock.patch.object(engine.utils, "getExam",
+                               return_value={"data": {"data": [{"questionId": "q1"}]}}), \
+             mock.patch.object(engine.utils, "getExamId", return_value={"code": 200, "data": {"id": "exam1"}}), \
+             mock.patch.object(engine.utils, "getAnswerById",
+                               side_effect=LookupError("题库缺少题目 q1 的答案")):
+            with self.assertRaises(engine.EngineError) as cm:
+                engine.run_by_userid("1234567890123456789")
+            self.assertIn("题库缺少题目 q1", str(cm.exception))
+
+    def test_run_by_login_accepts_school_name(self):
+        captured = {}
+
+        def fake_login(username, password, college_id):
+            captured["college_id"] = college_id
+            return {"success": True, "data": {"userId": "1951234567890123456"}}
+
+        with mock.patch.object(engine.utils, "getAllSchools",
+                               return_value=json.dumps({"data": [{"id": "s1", "name": "测试大学"}]})), \
+             mock.patch.object(engine.utils, "loginMethod", side_effect=fake_login), \
+             mock.patch.object(engine, "_run_flow", return_value={"score": 100, "elapsed_ms": 1.0}):
+            result = engine.run_by_login("测试大学", "user", "pass")
+        self.assertEqual(captured["college_id"], "s1")
+        self.assertEqual(result["score"], 100)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -10,18 +10,12 @@
     通过 check_cancel 回调支持在步骤之间取消。
 """
 import json
-import os
-import sys
 import time
 
 import requests
 
 import utils
-
-# 运行目录：PyInstaller 打包后取解压临时目录（_MEIPASS），否则取脚本目录。
-# 保证 database.db 与工作目录始终正确。
-_base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-os.chdir(_base_dir)
+import userid_validator
 
 # 江苏省新生安全知识教育的固定 collegeId（见 main.py）
 COLLEGE_ID = "1224316234189443073"
@@ -97,8 +91,14 @@ def _run_flow(userId, log, check_cancel, stats, untie=False):
     res = requests.post(
         "http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list",
         data={"userId": userId, "collegeId": COLLEGE_ID},
+        timeout=10,
     ).text
     course = json.loads(res)["data"]
+    if len(course) > len(tiku_list):
+        raise EngineError(
+            "平台课程数量（%d 门）多于脚本模板（%d 门），脚本需要更新，请联系脚本作者！"
+            % (len(course), len(tiku_list))
+        )
     unfinished = []
     for i, item in enumerate(course):
         status = "已完成" if item["isFinsh"] else "未完成"
@@ -121,6 +121,7 @@ def _run_flow(userId, log, check_cancel, stats, untie=False):
         res = requests.post(
             "http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list",
             data={"userId": userId, "collegeId": COLLEGE_ID},
+            timeout=10,
         ).text
         course = json.loads(res)["data"]
         for i, item in enumerate(course):
@@ -135,7 +136,7 @@ def _run_flow(userId, log, check_cancel, stats, untie=False):
     exam_list = utils.getExam(logId=log_id, userId=userId)
     log("取得考题列表，正在从数据库中读取答案然后整合...")
     questions = exam_list["data"]["data"]
-    question_list = [questions[i]["questionId"] for i in range(0, 50)]
+    question_ids = [q["questionId"] for q in questions]
 
     data = utils.getExamId(userId)
     if data.get("code") == 500:
@@ -147,11 +148,11 @@ def _run_flow(userId, log, check_cancel, stats, untie=False):
     exam_id = data["data"]["id"]
 
     answers = ()
-    for qid in question_list:
+    for qid in question_ids:
         try:
             answers += utils.getAnswerById(qid)
-        except Exception:
-            raise EngineError("err: 数据库读写错误")
+        except LookupError as e:
+            raise EngineError(str(e))
         _check(check_cancel)
     log("答案已生成，正在执行imitateExam提交答案...")
     res = utils.imitateExam(exam_id, log_id, userId, answers)
@@ -177,7 +178,7 @@ def _run_flow(userId, log, check_cancel, stats, untie=False):
             log("脚本统计执行成功（只记录分数和运行时长）")
         except Exception:
             log("脚本统计未被上传")
-    return {"score": score, "elapsed_ms": elapsed_ms}
+    return {"score": score, "elapsed_ms": elapsed_ms, "userId": userId}
 
 
 def run_by_userid(userId, log=print, check_cancel=None, stats=True):
@@ -185,13 +186,10 @@ def run_by_userid(userId, log=print, check_cancel=None, stats=True):
     userId 版入口。userId 为 19 位左右纯数字字符串。
     返回 {"score": ..., "elapsed_ms": ...}。
     """
-    try:
-        int(userId)
-    except (TypeError, ValueError):
-        raise EngineError(
-            "err: 你输入了错误的user_id，user_id通常是一个19位长的纯数字，请检查输入是否正确。"
-        )
-    return _run_flow(userId.strip(), log, check_cancel, stats, untie=False)
+    is_valid, result = userid_validator.validate_userid(userId)
+    if not is_valid:
+        raise EngineError(result)
+    return _run_flow(result, log, check_cancel, stats, untie=False)
 
 
 def _mask_userid(userId):
@@ -202,14 +200,11 @@ def _mask_userid(userId):
     return s[:3] + "***" + s[-3:]
 
 
-def run_by_login(school_id, username, password, log=print, check_cancel=None, stats=True):
+def run_by_login(school_name_or_id, username, password, log=print, check_cancel=None, stats=True):
     """
-    登录版入口。school_id 为学校 collegeId（数字字符串）。
+    登录版入口。school 可传 collegeId（数字字符串）或学校名称关键词。
     返回 {"score": ..., "elapsed_ms": ...}。
     """
-    login_result = utils.loginMethod(username.strip(), password, school_id)
-    if login_result.get("success") is not True:
-        raise EngineError("登录失败，请检查账号密码和学校是否正确")
-    userId = login_result["data"]["userId"]
+    userId, _ = login_and_get_user(school_name_or_id, username.strip(), password)
     log("获取到了userId %s，开始执行脚本" % _mask_userid(userId))
     return _run_flow(userId, log, check_cancel, stats, untie=True)

@@ -61,7 +61,7 @@ class GuiWindowTest(unittest.TestCase):
             app.mode_var.set("userid")
             app._start()
             self.assertFalse(app.running)
-            self.assertIn("userId 应为纯数字", app.log_text.get("1.0", "end"))
+            self.assertIn("应为纯数字", app.log_text.get("1.0", "end"))
 
             # 登录模式：未选择学校时拦截
             app.mode_var.set("login")

@@ -8,3 +8,6 @@ __pycache__/
 
 # 本地工具目录
 .reasonix/
+
+# 运行时状态
+config.json
