@@ -1,6 +1,7 @@
 import json
 import sqlite3
-import requests
+# import requests
+from requests import Session
 import os
 
 # 刮风这天我试过握着你手
@@ -10,32 +11,35 @@ import os
 
 # no result... 2025.08.29
 
+global session
+session = Session()
+
 def getAllSchools(province):
     """
     获取到学校列表
     """
-    raw = requests.get(f"http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/proCollege?provincesName={province}")
+    raw = session.get(f"http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/proCollege?provincesName={province}")
     return raw.text
 
 def getFacultyBySchoolId(id):
     """
     通过学校id获取到学院清单 id: int
     """
-    raw = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/getFaculty",data={"collegeId":id,"notTeacher":10})
+    raw = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/getFaculty",data={"collegeId":id,"notTeacher":10})
     return raw.text
 
 def getClassById(id):
     """
     通过学院id获取到专业清单 id: int
     """
-    raw = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/class",{"facultyId":id})
+    raw = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/select/class",{"facultyId":id})
 
 def regMethod(name, collegeId, facultyId, classId, account):
     """
     貌似没啥用，给大佬们自己二次开发吧qwq
     注册学生方法 通过传入姓名-name，学校id-collegeId，学院id-facultyId，专业id-classId，账号（考生号14位）-account以实现注册一个账号
     """
-    raw = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/jsregisterUser", data={"name":name, "password":"", "collegeId":collegeId, "facultyId":facultyId, "classId":classId, "account":account})
+    raw = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/jsregisterUser", data={"name":name, "password":"", "collegeId":collegeId, "facultyId":facultyId, "classId":classId, "account":account})
     """
     接口返回示例：
     {
@@ -159,7 +163,7 @@ def loginMethod(username, password, collegeId):
         'password': f'{password}',
     }
 
-    response = requests.post(
+    response = session.post(
         'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/jsUserLogin',
         cookies=cookies,
         headers=headers,
@@ -187,7 +191,7 @@ def UntyingMethod(userid):
         'userId': f'{userid}',
     }
 
-    response = requests.get(
+    response = session.get(
         'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/JsUntying',
         params=params,
         cookies=cookies,
@@ -224,12 +228,12 @@ def processData():
     
 def creatExam(userId):
     # 创建考试方法
-    result = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/create",data={"examId":"1948924196784492546","userId":userId}).text
+    result = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/create",data={"examId":"1948924196784492546","userId":userId}).text
     return json.loads(result)
 
 def getExam(logId,userId):
     # 获取考题
-    result = requests.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/list?logId=%s&page=1&limit=200&ah=&userId=%s" % (logId,userId)).text
+    result = session.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/list?logId=%s&page=1&limit=200&ah=&userId=%s" % (logId,userId)).text
     return json.loads(result)
 
 def getAnswerById(id):
@@ -272,7 +276,7 @@ def getAnswerById(id):
     # return "&question=%s&questionId=%s&quesTpe=%s"%(question,records[0][0],quesType)
 
 def getExamId(userId):
-    res = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/getTest",data={"examType":2,"examClass":20,"userId":userId,"ah":""})
+    res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/getTest",data={"examType":2,"examClass":20,"userId":userId,"ah":""})
     jsonData = json.loads(res.text)
     return jsonData
 
@@ -291,7 +295,7 @@ def imitateExam(examId,logId,userId,answers):
         ]
     data += answers
     # 构造提交考试请求：examId=1948924196784492546&examType=2&sysSource=20&logId=1956159499542806530&userId=1955967136757313538&ah=
-    result = requests.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/imitateTest", data=data, headers=headers)
+    result = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/imitateTest", data=data, headers=headers)
     return result
 
 def end(code: int):
@@ -310,7 +314,7 @@ def upload_stats(score, execute_time):
         "runtime_ms": execute_time
     }
 
-    resp = requests.post(url, json=payload, timeout=3)
+    resp = session.post(url, json=payload, timeout=3)
     return resp.json()
     # Example return: 
     # {'status': 'ok', 'message': '记录成功', 'data': {'count': 1, 'score': 100.0, 'runtime_ms': 2369.517}}
