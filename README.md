@@ -6,11 +6,9 @@ jiangsu-safety-platform-skip
 
 1.安装 Python3 ，并且确保安装了这个额外的库： requests 。
 
-2.程序分为登陆版和 userId 版两个版本，分别对应仓库内 main_login.py 和 main.py ，登陆版需要输入学校名称、账号和密码， userId 版需要进主页复制链接，找到 userId 。
+2.程序只要登录版，对应仓库内的 main.py ，登陆版需要输入学校名称、账号和密码。
 
-3.如果是登录版，请按照程序的指导输入学校名称、账号和密码，完成登录
-
-4.如果是 userId 版，请用手机打开微信客户端，访问 http://wap.xiaoyuananquantong.com/guns-vip-main/wap/wapJSLogin 完成登录进入主页后点击右上角复制链接，复制的链接中你需要选择从 "userid=" 后的一串数字，不包含除数字以外的任何成分。将这串数字输入到程序中，然后回车，直到程序运行完成，你可以在平台主页的结课选项中查询到你的证书。
+3.安全教育平台于 2026 年 8 月 28 日新增 Cookie 认证，由于需要登录取得 Cookie ，目前已移除 userid 版本。
 
 ⚙ **基本原理**
 
