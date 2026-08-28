@@ -18,7 +18,7 @@ jiangsu-safety-platform-skip
 
 欢迎提交 Issue 来交换您的看法和对脚本的更多建议！
 
-——南京晓庄学院 Scwizard
+——南京晓庄学院 Scwizard | 南通大学 Mr_Zhen_cn
 
 👌 **给我捐点**
 
