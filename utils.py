@@ -200,6 +200,64 @@ def UntyingMethod(userid):
     )
     return json.loads(response.text)
 
+def markArticleViewed(userId, articleId):
+    """
+    [+] 2026-08-28 平台新增文章浏览校验
+    标记文章已浏览，POST 表单仅需要 articleId + userId 两个参数
+    返回样例：
+        {"code":200,"data":"","message":"请求成功","success":true}
+    """
+    headers = {
+        'Accept': '*/*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Connection': 'keep-alive',
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'Origin': 'http://wap.xiaoyuananquantong.com',
+        'Referer': f'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/newStudentArticle?id={articleId}&userId={userId}&ah=',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 16; MEIZU 20 Pro Build/BQ2A.251110.001-BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/146.0.7680.178 Mobile Safari/537.36 XWEB/1460249 MMWEBSDK/20260202 MMWEBID/3950 REV/6666666666666666666666666666666666666666 MicroMessenger/8.0.71.3080(0x28004750) WeChat/arm64 Weixin NetType/5G Language/zh_CN ABI/arm64',
+        'X-Requested-With': 'XMLHttpRequest',
+    }
+
+    data = {
+        'articleId': f'{articleId}',
+        'userId': f'{userId}',
+    }
+
+    response = session.post(
+        'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/markArticleViewed',
+        headers=headers,
+        data=data,
+        verify=False,
+    )
+    return json.loads(response.text)
+
+def getArticleQuestions(userId, articleId):
+    """
+    [+] 2026-08-28 平台新增文章浏览校验
+    获取文章题目列表（加载文章题目），GET 参数 articleId + ah
+    """
+    headers = {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Connection': 'keep-alive',
+        'Referer': f'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/newStudentArticle?id={articleId}&userId={userId}&ah=',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 16; MEIZU 20 Pro Build/BQ2A.251110.001-BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/146.0.7680.178 Mobile Safari/537.36 XWEB/1460249 MMWEBSDK/20260202 MMWEBID/3950 REV/6666666666666666666666666666666666666666 MicroMessenger/8.0.71.3080(0x28004750) WeChat/arm64 Weixin NetType/5G Language/zh_CN ABI/arm64',
+        'X-Requested-With': 'XMLHttpRequest',
+    }
+
+    params = {
+        'articleId': f'{articleId}',
+        'ah': '',
+    }
+
+    response = session.get(
+        'http://wap.xiaoyuananquantong.com/guns-vip-main/wap/question/list',
+        params=params,
+        headers=headers,
+        verify=False,
+    )
+    return json.loads(response.text)
+
 
 def processData():
     """

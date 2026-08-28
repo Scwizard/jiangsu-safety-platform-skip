@@ -69,6 +69,13 @@ if unfinished == []:
 else:
     for i in unfinished:
         print(f"正在完成 {table[i]['title']}")
+        # 2026-08-28 平台新增文章浏览校验：必须按 markArticleViewed -> question/list -> unitTest 顺序请求
+        # 否则课程不会标记为已完成（isFinsh 不翻转），后续 test/create 会报"请先完成全部必修安全教育课程"
+        res = utils.markArticleViewed(userId, table[i]["articleId"])
+        if res.get("success") != True:
+            print(f"  [!] markArticleViewed 返回异常: {res}")
+        res = utils.getArticleQuestions(userId, table[i]["articleId"])
+        # 题目列表仅用于"加载文章题目"校验，无需解析答案
         res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=table[i]).text
         # res = json.loads(res)
     print("课程完成度查询(完成后)：")
