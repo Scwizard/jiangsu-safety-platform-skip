@@ -17,7 +17,7 @@ os.chdir(script_dir)
 print("切换到工作目录：", os.getcwd())
 # 修一下目录问题
 # 2026 的时候回来发现还有一些历史遗留问题，需要解决，比如数据库的路径
-print("您正在运行：登录版")
+print("您正在运行：登录版 (v1.0.5)")
 session = utils.session # 统一采用 Session 管理会话继承 cookies
 collegeId = utils.getUserSchool()
 username = str(input("请输入账号：").strip())
@@ -118,14 +118,28 @@ if int(score) != 100:
     print("没到100分，这是一个历史遗留问题，重刷一次就行了，因为题库录入的时候有一题出错了。")
 else:
     print(f"前往 http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId} 下载结课证书")
-
+    cer = session.get(f"http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId}")
+    # 下载证书
+    print("正在下载证书...")
+    import base64, re as _re, sys
+    r = _re.search(r'data:image/(\w+);base64,([A-Za-z0-9+/=]+)', cer.text)
+    if r:
+        # 打包成 exe 时保存到 exe 所在目录
+        save_dir = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, 'frozen', False) else script_dir
+        name = os.path.join(save_dir, f"certificate.{r.group(1)}")
+        with open(name, "wb") as f:
+            f.write(base64.b64decode(r.group(2)))
+        print(f"证书图片已下载到本地：{name}")
+    else:
+        print("证书下载失败！")
 print("正在解绑openId并退出登录...")
 res = utils.UntyingMethod(userId)
 print(res)
 end_time = time.time()
 elapsed_ms = (end_time - start_time) * 1000
 print(f"execute time: {elapsed_ms:.3f} ms.")
-print("脚本作者:南晓 Scwizard b站同名")
+print("脚本作者:南晓 Scwizard b站同名，欢迎前往github支持作者~")
+print("开源地址：https://github.com/Scwizard/jiangsu-safety-platform-skip")
 if STATS == True:
     try:
         res = utils.upload_stats(score, round(elapsed_ms, 3))
