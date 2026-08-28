@@ -31,6 +31,7 @@ if loginResult['success'] == False:
 openId = loginResult['data']['openId']
 userId = loginResult['data']['userId']
 print(f"获取到了userId {userId}，开始执行脚本")
+realCollegeId = loginResult['data'].get('collegeId', collegeId)
 start_time = time.time() # 计时器，启动！
 tiku1 = {"articleId":"2080135073788600321","title":"题库学习","userId":userId,"ah":"","question":"2080136617019842561-1","quesType":"3"}
 tiku2 = {"articleId":"2079132357549375490","title":"入学安全","userId":userId,"ah":"","question":"2079154657984266242-1","quesType":"3"}
@@ -45,6 +46,83 @@ tiku10 = {"articleId":"2079146628521934850","title":"应急救护","userId":user
 tiku11 = {"articleId":"2079147344531570690","title":"防灾减灾","userId":userId,"ah":"","question":"2079558043292418049-D","quesType":"1"}
 
 table = {0:tiku1, 1:tiku2, 2:tiku3, 3:tiku4, 4:tiku5, 5:tiku6, 6:tiku7, 7:tiku8, 8:tiku9, 9:tiku10, 10:tiku11} # 题库映射
+
+# ===== 必修课程（courseType=1）完成模块 =====
+# 平台考试资格判定依赖必修课程完成度（getRecord.bx），仅完成专题课（courseType=2）不够。
+# 必修课每篇文章只需答对 1 道题即可通过，这里用试错法找答案。
+
+def completeCompulsory(userId, collegeId):
+    print("正在检查必修课程完成度：")
+    res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list", data={"userId":userId,"collegeId":collegeId,"courseType":"1"}).text
+    data = json.loads(res)
+    courses = data["data"]
+    j = 1
+    unfinished = []
+    for i in courses:
+        if i["isFinsh"]:
+            print("必修第%s课 %s 已完成" % (j, i["name"]))
+        else:
+            unfinished.append(i)
+            print("必修第%s课 %s 未完成" % (j, i["name"]))
+        j += 1
+    if not unfinished:
+        print("必修课程已全部完成")
+        return
+    for c in unfinished:
+        cid = c["id"]
+        cname = c["name"]
+        print("正在完成必修课 %s ..." % cname)
+        res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/directory/list", data={"name":"","courseId":cid,"userId":userId,"collegeId":collegeId,"ah":""}).text
+        d = json.loads(res)
+        for chap in d["data"]:
+            for item in chap["list"]:
+                if item["isFinsh"]:
+                    continue
+                aid = item["id"]
+                atitle = item.get("course", cname)
+                rq = session.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/question/list", params={"articleId":aid,"ah":""}).text
+                try:
+                    qlist = json.loads(rq).get("data",{}).get("list",[])
+                except Exception:
+                    qlist = []
+                if not qlist:
+                    print("  [--] %s 无题目，跳过" % atitle)
+                    continue
+                ok = False
+                for q in qlist:
+                    qid = q["id"]
+                    qt = q["quesType"]
+                    if qt == "判断":
+                        for ans in ("1","0"):
+                            rr = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=[("articleId",aid),("title",atitle),("userId",userId),("ah",""),("question","%s-%s"%(qid,ans)),("questionId",qid),("quesType","3")]).text
+                            if json.loads(rr).get("data",{}).get("isSuccess"):
+                                print("  [OK] %s 判断题 %s -> %s" % (atitle,qid,ans))
+                                ok = True
+                                break
+                    elif qt == "单选":
+                        for opt in "ABCD":
+                            rr = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=[("articleId",aid),("title",atitle),("userId",userId),("ah",""),("question","%s-%s"%(qid,opt)),("questionId",qid),("quesType","1")]).text
+                            if json.loads(rr).get("data",{}).get("isSuccess"):
+                                print("  [OK] %s 单选题 %s -> %s" % (atitle,qid,opt))
+                                ok = True
+                                break
+                    else:
+                        for combo in ("ABCD","ABC","ABD","ACD","BCD","AB","AC","AD","BC","BD","CD","A","B","C","D"):
+                            qstr = "".join("~%s-%s"%(qid,c2) for c2 in combo)
+                            rr = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=[("articleId",aid),("title",atitle),("userId",userId),("ah",""),("question",qstr),("questionId",qid),("quesType","2")]).text
+                            if json.loads(rr).get("data",{}).get("isSuccess"):
+                                print("  [OK] %s 多选题 %s -> %s" % (atitle,qid,combo))
+                                ok = True
+                                break
+                    if ok:
+                        break
+                if not ok:
+                    print("  [!!] %s 未能通过，请手动检查" % atitle)
+    print("必修课程完成度查询(完成后)：")
+    res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list", data={"userId":userId,"collegeId":collegeId,"courseType":"1"}).text
+    data = json.loads(res)
+    for i in data["data"]:
+        print("%s: %s" % (i["name"], "已完成" if i["isFinsh"] else "未完成"))
 
 res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list", data={"userId":userId,"collegeId":"1224316234189443073"}).text
 data = json.loads(res)
@@ -83,6 +161,8 @@ else:
             print("第%s课 %s 未完成" % (j, i["name"]))
         j += 1
     print("已完成课程学习")
+print("正在检查必修课程...")
+completeCompulsory(userId, realCollegeId)
 print("正在进入考试流程...")
 logId = utils.creatExam(userId)["data"]["logId"]
 print("取得logId %s" % logId)
