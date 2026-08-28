@@ -145,6 +145,11 @@ def submit_unit(user_id, article_id, title, items, answer_map):
 
 def complete_article(user_id, course_name, article_id, cache):
     """完成一篇文章的学习测试;缺失答案时用两轮错误提交从错题接口收割正确答案"""
+    # 平台 2026-08-28 新增 markArticleViewed 校验:正常流程先标记文章已观看,再取题作答
+    try:
+        session.get(f"{BASE}/markArticleViewed", params={"articleId": article_id, "userId": user_id}, timeout=25)
+    except Exception:
+        pass
     q = session.get(f"{BASE}/question/list", params={"articleId": article_id, "ah": ""}, timeout=25).json()
     items = (q.get("data") or {}).get("list") or []
     if not items:
