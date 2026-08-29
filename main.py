@@ -14,6 +14,8 @@
   6. 移除结尾的微信解绑(UntyingMethod 会解绑 openId,可能导致后续无法用微信登录)。
   7. 学校选择:修复递归不 return 返回 None、序号越界崩溃的问题。
   8. 全部 SQL 改参数化查询;所有接口响应先校验 code 再取字段,避免裸崩溃。
+  9. 速度优化: 学校列表 7 天落盘缓存; 两个课程列表并行拉取、未完成课程 4 线程并行;
+     考试答案一次 IN 查询(不再逐题开数据库); 证书已存在则跳过重复下载。
 """
 import os
 import sys
@@ -22,7 +24,9 @@ import json
 import time
 import base64
 import sqlite3
+import threading
 import urllib3
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 urllib3.disable_warnings()
 from requests import Session
@@ -51,8 +55,30 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 DB_PATH = os.path.join(script_dir, "database.db")
 COURSE_ANSWERS_PATH = os.path.join(script_dir, "course_answers.json")
+SCHOOLS_CACHE_PATH = os.path.join(script_dir, "schools_cache.json")
+SCHOOLS_CACHE_TTL = 7 * 24 * 3600  # 学校列表缓存 7 天,省掉每次 600KB+ 的下载
 
 session = Session()
+
+
+def load_schools_cache():
+    """学校列表落盘缓存,7 天内直接复用,网络失败时兜底"""
+    try:
+        with open(SCHOOLS_CACHE_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+        if time.time() - float(d.get("ts", 0)) < SCHOOLS_CACHE_TTL:
+            return d.get("data")
+    except Exception:
+        pass
+    return None
+
+
+def save_schools_cache(data):
+    try:
+        with open(SCHOOLS_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump({"ts": time.time(), "data": data}, f, ensure_ascii=False)
+    except Exception:
+        pass
 
 
 def load_course_answers():
@@ -71,25 +97,30 @@ def save_course_answers(data):
         print(f"[警告] 保存课程答案缓存失败: {e}")
 
 
-def db_lookup(question_id):
-    """从 database.db 的 tiku 表查答案,返回 (quesType, answer) 或 None"""
+def db_lookup_all(question_ids):
+    """一次 IN 查询取全部题目答案(替代逐题打开数据库),返回 {qid: [quesType, answer]}"""
+    result = {}
+    if not question_ids:
+        return result
     try:
+        placeholders = ",".join("?" * len(question_ids))
         con = sqlite3.connect(DB_PATH)
         cur = con.cursor()
-        cur.execute("SELECT questionId, answer, quesType FROM tiku WHERE questionId = ? ORDER BY rowid",
-                    (str(question_id),))
-        rows = cur.fetchall()
+        cur.execute(f"SELECT questionId, answer, quesType FROM tiku "
+                    f"WHERE questionId IN ({placeholders}) ORDER BY rowid",
+                    list(question_ids))
+        for qid, ans, qt in cur.fetchall():
+            if str(qt) == "2":
+                result.setdefault(str(qid), ["2", []])[1].append(str(ans))
+            else:
+                result[str(qid)] = [str(qt), str(ans)]
         con.close()
-        if not rows:
-            return None
-        qt = str(rows[0][2])
-        if qt == "2":
-            letters = [r[1] for r in rows if r[1] in "ABCDEF"]
-            return qt, ",".join(letters)
-        return qt, str(rows[0][1])
     except Exception as e:
         print(f"[警告] 本地题库读取失败: {e}")
-        return None
+    for v in result.values():
+        if v[0] == "2":
+            v[1] = ",".join(v[1])
+    return result
 
 
 def qt_code(chinese):
@@ -98,12 +129,16 @@ def qt_code(chinese):
 
 def build_value(qid, qtype, answer):
     """按平台格式拼 question 字段值: 单选/判断 id-X, 多选 ~id-A~id-B..."""
+    a = str(answer or "").strip()
+    # 兼容 "qid-X" / "~qid-A~qid-B" 的整串缓存格式
+    if a.startswith(qid + "-"):
+        a = a[len(qid) + 1:]
+    a = a.replace("~" + qid + "-", "")
     if qtype == "2":
-        letters = [c for c in (answer or "").replace(",", "").replace("，", "") if c in "ABCDEF"]
+        letters = [c for c in a.replace(",", "").replace("，", "") if c in "ABCDEF"]
         if letters:
             return "".join(f"~{qid}-{L}" for L in letters)
         return None
-    a = str(answer or "").strip()
     if a == "正确":
         a = "1"
     if a == "错误":
@@ -143,7 +178,7 @@ def submit_unit(user_id, article_id, title, items, answer_map):
     return session.post(f"{BASE}/unitTest", data=data, timeout=30).json()
 
 
-def complete_article(user_id, course_name, article_id, cache):
+def complete_article(user_id, course_name, article_id, cache, cache_lock=None):
     """完成一篇文章的学习测试;缺失答案时用两轮错误提交从错题接口收割正确答案"""
     q = session.get(f"{BASE}/question/list", params={"articleId": article_id, "ah": ""}, timeout=25).json()
     items = (q.get("data") or {}).get("list") or []
@@ -176,19 +211,45 @@ def complete_article(user_id, course_name, article_id, cache):
             d = r.get("data") or {}
             if not d.get("isSuccess") and d.get("logId"):
                 got = harvest_from_wrong(d["logId"])
-                for qid, v in got.items():
-                    cache[qid] = list(v)
-                    answer_map[qid] = v
+                if cache_lock:
+                    with cache_lock:
+                        for qid, v in got.items():
+                            cache[qid] = list(v)
+                            answer_map[qid] = v
+                else:
+                    for qid, v in got.items():
+                        cache[qid] = list(v)
+                        answer_map[qid] = v
             elif d.get("isSuccess"):
                 # 理论上不会两轮全中;真发生了就把本轮答案记为正确
-                for qid, v in wrong_map.items():
-                    cache[qid] = list(v)
-                    answer_map[qid] = v
+                if cache_lock:
+                    with cache_lock:
+                        for qid, v in wrong_map.items():
+                            cache[qid] = list(v)
+                            answer_map[qid] = v
+                else:
+                    for qid, v in wrong_map.items():
+                        cache[qid] = list(v)
+                        answer_map[qid] = v
             time.sleep(0.3)
-        save_course_answers(cache)
 
     r = submit_unit(user_id, article_id, course_name, items, answer_map)
     d = r.get("data") or {}
+    if not d.get("isSuccess") and d.get("logId"):
+        # 自愈:缓存答案可能有误导致未通过 -> 从错题表收割正确答案,修正后重试一次
+        got = harvest_from_wrong(d["logId"])
+        if got:
+            def _merge():
+                for qid, v in got.items():
+                    cache[qid] = list(v)
+                    answer_map[qid] = v
+            if cache_lock:
+                with cache_lock:
+                    _merge()
+            else:
+                _merge()
+            r = submit_unit(user_id, article_id, course_name, items, answer_map)
+            d = r.get("data") or {}
     if d.get("isSuccess"):
         print(f"  [{course_name}] 文章 {article_id}: 通过 ({len(items)}题)", flush=True)
         return True
@@ -197,28 +258,58 @@ def complete_article(user_id, course_name, article_id, cache):
 
 
 def complete_all_courses(user_id, college_id):
+    """课程完成:两个 courseType 列表并行拉取,未完成课程 4 线程并行完成"""
     cache = load_course_answers()
-    all_ok = True
-    for ctype in ("2", "1"):
+    cache_lock = threading.Lock()
+
+    def fetch_list(ctype):
         r = session.post(f"{BASE}/compulsory/list",
                          data={"name": "", "courseType": ctype, "userId": user_id,
                                "collegeId": college_id, "ah": ""}, timeout=25).json()
-        courses = r.get("data") or []
-        for c in courses:
-            name, cid, finsh = c.get("name"), c.get("id"), c.get("isFinsh")
+        return ctype, r.get("data") or []
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        futures = {ex.submit(fetch_list, ct): ct for ct in ("2", "1")}
+        type_map = {}
+        for fut in as_completed(futures):
+            ctype, courses = fut.result()
+            type_map[ctype] = courses
+
+    pending = []
+    for ctype in ("2", "1"):
+        for c in type_map.get(ctype, []):
+            name, finsh = c.get("name"), c.get("isFinsh")
             if finsh:
                 print(f"[courseType={ctype}] {name}: 已完成", flush=True)
-                continue
-            print(f"[courseType={ctype}] {name}: 未完成,开始处理", flush=True)
+            else:
+                print(f"[courseType={ctype}] {name}: 未完成,开始处理", flush=True)
+                pending.append((ctype, c))
+
+    def do_course(ctype, c):
+        name, cid = c.get("name"), c.get("id")
+        try:
             d = session.post(f"{BASE}/directory/list",
                              data={"name": "", "courseId": cid, "userId": user_id,
                                    "collegeId": college_id, "ah": ""}, timeout=25).json()
             articles = [it["id"] for ch in (d.get("data") or []) for it in (ch.get("list") or [])]
-            for art in articles:
-                if not complete_article(user_id, name, art, cache):
+        except Exception as e:
+            print(f"  [{name}] 目录获取失败: {e}", flush=True)
+            return False
+        ok = True
+        for art in articles:
+            if not complete_article(user_id, name, art, cache, cache_lock):
+                ok = False
+        return ok
+
+    all_ok = True
+    if pending:
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            for fut in as_completed([ex.submit(do_course, ct, c) for ct, c in pending]):
+                if not fut.result():
                     all_ok = False
-            time.sleep(0.3)
-    save_course_answers(cache)
+
+    with cache_lock:
+        save_course_answers(cache)
     return all_ok
 
 
@@ -248,14 +339,15 @@ def take_exam(user_id):
     rows = (r.get("data") or {}).get("data") or []
     print(f"取得 {len(rows)} 道考题,正在匹配本地题库答案...", flush=True)
 
-    # 4) 组装答案
+    # 4) 组装答案(一次性 IN 查询全部题目,替代逐题查库)
     data = [("examId", exam_id), ("examType", 2), ("sysSource", 20),
             ("logId", log_id), ("userId", user_id), ("ah", "")]
+    hits = db_lookup_all([str((row.get("question") or {}).get("id")) for row in rows])
     missing = []
     for row in rows:
         qq = row.get("question") or {}
         qid, qt = str(qq.get("id")), str(qq.get("quesType"))
-        hit = db_lookup(qid)
+        hit = hits.get(qid)
         if not hit:
             missing.append(qid)
             continue
@@ -289,11 +381,17 @@ def take_exam(user_id):
 
 
 def download_certificate(user_id):
+    # 证书已存在则直接复用,跳过 300KB+ 的页面下载;文件名带 userId 避免多账号互相覆盖
+    for ext in ("jpeg", "png", "jpg", "webp", "gif"):
+        p = os.path.join(script_dir, f"certificate_{user_id}.{ext}")
+        if os.path.exists(p) and os.path.getsize(p) > 1000:
+            print(f"证书已存在,直接使用: {p}")
+            return p
     try:
         r = session.get(f"{BASE}/qrCode?userId={user_id}", timeout=25)
         m = re.search(r"data:image/(\w+);base64,([A-Za-z0-9+/=]+)", r.text)
         if m:
-            name = os.path.join(script_dir, f"certificate.{m.group(1)}")
+            name = os.path.join(script_dir, f"certificate_{user_id}.{m.group(1)}")
             with open(name, "wb") as f:
                 f.write(base64.b64decode(m.group(2)))
             print(f"证书图片已保存到: {name}")
@@ -306,17 +404,30 @@ def download_certificate(user_id):
 def main():
     print("您正在运行:登录版 2026-08-28 修复版")
 
-    # 学校选择(带重试与越界保护)
+    # 学校选择(学校列表走 7 天落盘缓存,缓存未命中才联网;带重试与越界保护)
     college_id = None
+    schools_data = load_schools_cache()
+    if schools_data is None:
+        try:
+            schools_data = session.get(
+                f"{BASE}/select/proCollege?provincesName={url_quote('江苏省')}", timeout=20).json()
+            schools_data = schools_data.get("data") or []
+            save_schools_cache(schools_data)
+        except Exception:
+            schools_data = []
     while college_id is None:
         school_key = input("请输入学校名称[关键词也可以]:").strip()
-        try:
-            school_list = session.get(
-                f"{BASE}/select/proCollege?provincesName={url_quote('江苏省')}", timeout=20).json()
-        except Exception:
-            print("错误:网络异常,请检查网络后重试")
-            continue
-        matches = [s for s in (school_list.get("data") or []) if school_key in str(s.get("name", ""))]
+        matches = [s for s in schools_data if school_key in str(s.get("name", ""))]
+        if not matches:
+            # 缓存未命中关键词 -> 强制刷新一次再试
+            try:
+                fresh = session.get(
+                    f"{BASE}/select/proCollege?provincesName={url_quote('江苏省')}", timeout=20).json()
+                schools_data = fresh.get("data") or []
+                save_schools_cache(schools_data)
+                matches = [s for s in schools_data if school_key in str(s.get("name", ""))]
+            except Exception:
+                print("错误:网络异常,且本地缓存中无匹配学校")
         if not matches:
             print("未查找到任何学校,请重新输入")
             continue
