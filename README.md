@@ -6,13 +6,9 @@ jiangsu-safety-platform-skip
 
 1.安装 Python3 ，并且确保安装了这个额外的库： requests 。
 
-2.程序分为登陆版和 userId 版两个版本，分别对应仓库内 main_login.py 和 main.py ，登陆版需要输入学校名称、账号和密码， userId 版需要进主页复制链接，找到 userId 。
+2.程序只有登陆版一个版本，对应仓库内的 main.py ，登陆版需要输入学校名称、账号和密码。
 
-3.如果是登录版，请按照程序的指导输入学校名称、账号和密码，完成登录
-
-4.如果是 userId 版，请用手机打开微信客户端，访问 http://wap.xiaoyuananquantong.com/guns-vip-main/wap/wapJSLogin 完成登录进入主页后点击右上角复制链接，复制的链接中你需要选择从 "userid=" 后的一串数字，不包含除数字以外的任何成分。将这串数字输入到程序中，然后回车，直到程序运行完成，你可以在平台主页的结课选项中查询到你的证书。
-
-5.针对于平台 2026 年 08 月 28 日的策略进行了略微的调整，采用 session 对全局进行管理，并恢复 userid 版本，回归 main 分支，并将发布版本回退到 v1.0.5 。
+3.针对于平台 2026 年 08 月 28 日的策略进行了略微的调整，采用 session 对全局进行管理，并移除了 userid 版本，回归 main 分支，并将发布版本回退到 v1.0.6 。
 
 ⚙ **基本原理**
 
@@ -23,6 +19,7 @@ jiangsu-safety-platform-skip
 欢迎提交 Issue 来交换您的看法和对脚本的更多建议！
 
 作者：南京晓庄学院 Scwizard
+
 感谢：ECXiaobai | Leeyus | Mr_Zhen_cn (排名不分先后) 对本项目的贡献
 
 👌 **给我捐点**
