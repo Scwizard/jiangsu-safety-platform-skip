@@ -123,15 +123,18 @@ else:
     cer = session.get(f"http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId}")
     # 下载证书
     print("正在下载证书...")
-    import base64, re as _re
+    import base64, re as _re, sys
     r = _re.search(r'data:image/(\w+);base64,([A-Za-z0-9+/=]+)', cer.text)
     if r:
         name = f"certificate.{r.group(1)}"
-        with open(name, "wb") as f:
+        # exe 环境保存到 exe 所在目录，否则保存到脚本所在目录
+        save_dir = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else script_dir
+        cert_path = os.path.join(save_dir, name)
+        with open(cert_path, "wb") as f:
             f.write(base64.b64decode(r.group(2)))
-        print(f"证书图片已下载到本地：{os.path.abspath(name)}")
+        print(f"证书图片已下载到本地：{os.path.abspath(cert_path)}")
     else:
-        print("证书下载失败！")
+        print("证书下载失败，请自行前往：首页->电子学档 查看或下载证书")
 print("正在解绑openId并退出登录...")
 res = utils.UntyingMethod(userId)
 print(res)
