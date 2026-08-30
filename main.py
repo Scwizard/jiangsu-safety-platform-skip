@@ -120,21 +120,28 @@ if int(score) != 100:
     print("没到100分，这是一个历史遗留问题，重刷一次就行了，因为题库录入的时候有一题出错了。")
 else:
     print(f"前往 http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId} 下载结课证书")
-    cer = session.get(f"http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId}")
-    # 下载证书
-    print("正在下载证书...")
+    # 下载证书(按 userId 命名,多账号互不覆盖;该账号证书已存在则直接复用)
     import base64, re as _re, sys
-    r = _re.search(r'data:image/(\w+);base64,([A-Za-z0-9+/=]+)', cer.text)
-    if r:
-        name = f"certificate.{r.group(1)}"
-        # exe 环境保存到 exe 所在目录，否则保存到脚本所在目录
-        save_dir = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else script_dir
-        cert_path = os.path.join(save_dir, name)
-        with open(cert_path, "wb") as f:
-            f.write(base64.b64decode(r.group(2)))
-        print(f"证书图片已下载到本地：{os.path.abspath(cert_path)}")
+    save_dir = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else script_dir
+    exist_cert = None
+    for ext in ("jpeg", "png", "jpg", "webp", "gif"):
+        p = os.path.join(save_dir, f"certificate_{userId}.{ext}")
+        if os.path.exists(p) and os.path.getsize(p) > 0:
+            exist_cert = p
+            break
+    if exist_cert:
+        print(f"该账号证书已存在，直接使用：{os.path.abspath(exist_cert)}")
     else:
-        print("证书下载失败，请自行前往：首页->电子学档 查看或下载证书")
+        print("正在下载证书...")
+        cer = session.get(f"http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId}")
+        r = _re.search(r'data:image/(\w+);base64,([A-Za-z0-9+/=]+)', cer.text)
+        if r:
+            cert_path = os.path.join(save_dir, f"certificate_{userId}.{r.group(1)}")
+            with open(cert_path, "wb") as f:
+                f.write(base64.b64decode(r.group(2)))
+            print(f"证书图片已下载到本地：{os.path.abspath(cert_path)}")
+        else:
+            print("证书下载失败，请自行前往：首页->电子学档 查看或下载证书")
 print("正在解绑openId并退出登录...")
 res = utils.UntyingMethod(userId)
 print(res)
