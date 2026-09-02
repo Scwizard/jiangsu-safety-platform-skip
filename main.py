@@ -11,13 +11,14 @@ import os
 
 STATS = True # 脚本用量统计，我们只保存您的脚本最终得分和运行时长，不会记录浏览器指纹、IP地址、客户端信息等内容
 # 如果您不想开启此功能，请把 True 改成 False
+WAIT_SECONDS = 1
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 print("切换到工作目录：", os.getcwd())
 # 修一下目录问题
 # 2026 的时候回来发现还有一些历史遗留问题，需要解决，比如数据库的路径
-print("您正在运行：登录版 (v1.0.6)")
+print("您正在运行：登录版 (v1.0.7)")
 session = utils.session # 统一采用 Session 管理会话继承 cookies
 collegeId = utils.getUserSchool()
 username = str(input("请输入账号：").strip())
@@ -68,8 +69,13 @@ if unfinished == []:
     print("检测到所有课程已经完成，直接进入考试")
 else:
     for i in unfinished:
-        print(f"正在完成 {table[i]['title']}")
-        res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=table[i]).text
+        print(f"正在完成 {table[i]['title']}，等待{WAIT_SECONDS}秒后提交...")
+        sess = utils.createUnitSession(userId, table[i]["articleId"])  # new:拿到token
+        payload = dict(table[i])
+        payload["logId"] = sess["logId"]
+        payload["token"] = sess["token"]
+        time.sleep(WAIT_SECONDS)
+        res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=payload).text
         # res = json.loads(res)
     print("课程完成度查询(完成后)：")
     res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list",data={"userId":userId,"collegeId":"1224316234189443073"}).text
@@ -85,8 +91,13 @@ else:
     print("已完成课程学习")
 print("正在进入考试流程...")
 # print()
-res = utils.creatExam(userId)
+try:
+    res = utils.creatExam(userId)
+except:
+    print("脚本运行异常，如果没有完成课程学习，请前往github下载新版...")
+    utils.end()
 logId = res["data"]["logId"]
+token = res["data"]["token"]  # 新增:提交凭证(防作弊),create 响应里带
 print("取得logId %s" % logId)
 examList = utils.getExam(logId=logId, userId=userId)
 print("取得考题列表，正在从数据库中读取答案然后整合...")
@@ -111,9 +122,21 @@ for i in questionList:
         print("err: 数据库读写错误")
         utils.end(1)
 print("答案已生成，正在执行imitateExam提交答案...")
-res = utils.imitateExam(examId, logId, userId, answers)
-# print(res.text)
+# 平台新增防作弊:token 里带开答时间，不足 = 1006
+print(f"等待最短答题时长 {WAIT_SECONDS} 秒(防作弊校验)...")
+time.sleep(WAIT_SECONDS)
+res = utils.imitateExam(examId, logId, userId, answers, token)
 res = json.loads(res.text)
+for _ in range(6):
+    if res.get("code") == 1006:  # 答题时间过短
+        print("答题时间过短，等待10秒，如果不成功请前往github下载新版（")
+        time.sleep(10)
+        res = json.loads(utils.imitateExam(examId, logId, userId, answers, token).text)
+        continue
+    break
+if not isinstance(res.get("data"), dict):
+    print("交卷未成功:", json.dumps(res, ensure_ascii=False)[:300])
+    utils.end(1)
 score = res["data"]["count"]
 print(f'得分：{score}')
 if int(score) != 100:
@@ -123,6 +146,7 @@ else:
     # 下载证书(按 userId 命名,多账号互不覆盖;该账号证书已存在则直接复用)
     import base64, re as _re, sys
     save_dir = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else script_dir
+    # 修了打包版本下载 frozen 路径
     exist_cert = None
     for ext in ("jpeg", "png", "jpg", "webp", "gif"):
         p = os.path.join(save_dir, f"certificate_{userId}.{ext}")
