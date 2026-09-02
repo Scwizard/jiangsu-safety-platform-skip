@@ -227,9 +227,27 @@ def processData():
         f.close()
     
 def creatExam(userId):
-    # 创建考试方法
-    result = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/create",data={"examId":"1948924196784492546","userId":userId}).text
+    # 创建考试方法:先取当前有效考试 id(旧考试 id 已过期,会抽到 2025 年题库);create 返回 logId + token(提交凭证)
+    exam_id = json.loads(session.post(
+        "http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/getTest",
+        data={"examType": 2, "examClass": 20, "userId": userId, "ah": ""}).text)["data"]["id"]
+    result = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/create",
+                          data={"examId": exam_id, "userId": userId}).text
     return json.loads(result)
+
+def createUnitSession(userId, articleId):
+    # 签发token
+    try:
+        result = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest/create",
+                              data={"userId": userId, "articleId": articleId}).text
+        j = json.loads(result)
+    except Exception as e:
+        print("创建防作弊会话异常:", e)
+        return {"logId": "", "token": ""}
+    if j.get("code") == 200 and (j.get("data") or {}).get("token"):
+        return {"logId": j["data"]["logId"], "token": j["data"]["token"]}
+    # print("创建防作弊会话失败:", j)
+    return {"logId": "", "token": ""}
 
 def getExam(logId,userId):
     # 获取考题
@@ -280,7 +298,7 @@ def getExamId(userId):
     jsonData = json.loads(res.text)
     return jsonData
 
-def imitateExam(examId,logId,userId,answers):
+def imitateExam(examId,logId,userId,answers,token=""):
     headers = {
         "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
         "Referer" : "http://wap.xiaoyuananquantong.com/guns-vip-main/wap/newStudentssimulate?examId=%s&examType=2&userId=%s&ah"% (examId, userId)
@@ -292,9 +310,10 @@ def imitateExam(examId,logId,userId,answers):
         ("logId",logId),
         ("userId",userId),
         ("ah",""),
+        ("token",token),
         ]
     data += answers
-    # 构造提交考试请求：examId=1948924196784492546&examType=2&sysSource=20&logId=1956159499542806530&userId=1955967136757313538&ah=
+    # 构造提交考试请求：examId=1948924196784492546&examType=2&sysSource=20&logId=1956159499542806530&userId=1955967136757313538&ah= &token=...
     result = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/imitateTest", data=data, headers=headers)
     return result
 
