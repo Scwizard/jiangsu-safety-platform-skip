@@ -2,6 +2,7 @@ import time
 import utils
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # “2026江苏省大学新生安全知识教育”一键完成脚本 (登录版)
 # Scwizard/HAM:BA4TLH
@@ -11,14 +12,18 @@ import os
 
 STATS = True # 脚本用量统计，我们只保存您的脚本最终得分和运行时长，不会记录浏览器指纹、IP地址、客户端信息等内容
 # 如果您不想开启此功能，请把 True 改成 False
-WAIT_SECONDS = 1
+WAIT_SECONDS = 5
+
+THREADS = 12 # 课程并行完成的线程数，越大越快，但太大可能被平台风控
+
+VERSION = [1, 0, 8]
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 print("切换到工作目录：", os.getcwd())
 # 修一下目录问题
 # 2026 的时候回来发现还有一些历史遗留问题，需要解决，比如数据库的路径
-print("您正在运行：登录版 (v1.0.7)")
+print("您正在运行：登录版 (v1.0.8)")
 session = utils.session # 统一采用 Session 管理会话继承 cookies
 collegeId = utils.getUserSchool()
 username = str(input("请输入账号：").strip())
@@ -68,8 +73,10 @@ process = ()
 if unfinished == []:
     print("检测到所有课程已经完成，直接进入考试")
 else:
-    for i in unfinished:
-        print(f"正在完成 {table[i]['title']}，等待{WAIT_SECONDS}秒后提交...")
+    def finish_course(i):
+        # 单个线程完成一门课程：拿token -> 等待 -> 提交
+        title = table[i]['title']
+        print(f"[并行] 正在完成 {title}，等待{WAIT_SECONDS}秒后提交...")
         sess = utils.createUnitSession(userId, table[i]["articleId"])  # new:拿到token
         payload = dict(table[i])
         payload["logId"] = sess["logId"]
@@ -77,6 +84,16 @@ else:
         time.sleep(WAIT_SECONDS)
         res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=payload).text
         # res = json.loads(res)
+        print(f"[并行] {title} 提交完成")
+        return i
+    with ThreadPoolExecutor(max_workers=THREADS) as executor:
+        futures = {executor.submit(finish_course, i): i for i in unfinished}
+        for future in as_completed(futures):
+            i = futures[future]
+            try:
+                future.result()
+            except Exception as e:
+                print(f"[并行] {table[i]['title']} 完成时出错: {e}")
     print("课程完成度查询(完成后)：")
     res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list",data={"userId":userId,"collegeId":"1224316234189443073"}).text
     data = json.loads(res)
@@ -99,7 +116,11 @@ except:
 logId = res["data"]["logId"]
 token = res["data"]["token"]  # 新增:提交凭证(防作弊),create 响应里带
 print("取得logId %s" % logId)
-examList = utils.getExam(logId=logId, userId=userId)
+try:
+    examList = utils.getExam(logId=logId, userId=userId)
+except:
+    print("脚本运行异常，如果没有完成课程学习，请前往github下载新版...")
+    utils.end()
 print("取得考题列表，正在从数据库中读取答案然后整合...")
 questions = examList["data"]["data"]
 questionList = []
