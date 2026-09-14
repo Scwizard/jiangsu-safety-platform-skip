@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 STATS = True # 脚本用量统计，我们只保存您的脚本最终得分和运行时长，不会记录浏览器指纹、IP地址、客户端信息等内容
 # 如果您不想开启此功能，请把 True 改成 False
-WAIT_SECONDS = 5
+WAIT_SECONDS = 10
 
 THREADS = 12 # 课程并行完成的线程数，越大越快，但太大可能被平台风控
 
