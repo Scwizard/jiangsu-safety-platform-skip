@@ -16,14 +16,14 @@ WAIT_SECONDS = 5
 
 THREADS = 12 # 课程并行完成的线程数，越大越快，但太大可能被平台风控
 
-VERSION = [1, 0, 8]
+VERSION = [1, 0, 9]
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 print("切换到工作目录：", os.getcwd())
 # 修一下目录问题
 # 2026 的时候回来发现还有一些历史遗留问题，需要解决，比如数据库的路径
-print("您正在运行：登录版 (v1.0.8)")
+print("您正在运行：登录版 (v1.0.9)")
 session = utils.session # 统一采用 Session 管理会话继承 cookies
 collegeId = utils.getUserSchool()
 username = str(input("请输入账号：").strip())
@@ -148,9 +148,10 @@ print(f"等待最短答题时长 {WAIT_SECONDS} 秒(防作弊校验)...")
 time.sleep(WAIT_SECONDS)
 res = utils.imitateExam(examId, logId, userId, answers, token)
 res = json.loads(res.text)
-for _ in range(6):
+total_try = 10
+for _ in range(total_try):
     if res.get("code") == 1006:  # 答题时间过短
-        print("答题时间过短，等待10秒，如果不成功请前往github下载新版（")
+        print(f"答题时间过短，尝试等待10秒，若右侧次数满了但不成功请前往github下载新版({_}/{total_try})")
         time.sleep(10)
         res = json.loads(utils.imitateExam(examId, logId, userId, answers, token).text)
         continue
