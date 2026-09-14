@@ -257,39 +257,45 @@ def getExam(logId,userId):
 def getAnswerById(id):
     # print(f"查询 {id}")
     # 从数据库获取答案然后组装元组
-    conn = sqlite3.connect(os.path.abspath('database.db')) # 2026 修复路径问题，解决找不到tiku的报错
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    database_path = os.path.join(script_dir, 'database.db')
+    conn = sqlite3.connect(database_path)  # 修复路径问题，确保无论当前工作目录如何都能正确定位数据库
     cursor = conn.cursor()
-    
-    cursor.execute(f'''
-    SELECT questionId, answer, quesType 
-    FROM tiku 
-    WHERE questionId is %s
-    ORDER BY questionId
-    '''% id)
-    
+
+    question_id = str(id)
+    cursor.execute(
+        '''
+        SELECT questionId, answer, quesType
+        FROM tiku
+        WHERE questionId = ?
+        ORDER BY questionId
+        ''',
+        (question_id,),
+    )
+
     records = cursor.fetchall()
     conn.close()
-    
+
     # 没有对应答案
     if not records:
         print("没找到答案")
         return ""
     print(f"从题库查询题目 {id} 类型 {records[0][2]} -> 答案 {records[0][1]}")
-    
-    quesType = records[0][2]
+
+    quesType = str(records[0][2])
     if quesType == "2":
         # 多选
         question = ""
         for i in records:
-            question += "~%s-%s" % (i[0],i[1])
+            question += "~%s-%s" % (i[0], i[1])
     elif quesType == "1":
         # 单选
-        question = "%s-%s" % (records[0][0],records[0][1])
+        question = "%s-%s" % (records[0][0], records[0][1])
     else:
         # 判断
-        question = "%s-%s" % (records[0][0],records[0][1])
+        question = "%s-%s" % (records[0][0], records[0][1])
     # 重建原始字符串
-    return ("question",question),("questionId",records[0][0]),("quesType",quesType)
+    return ("question", question), ("questionId", records[0][0]), ("quesType", quesType)
     # 保留了另一种构建完整请求体的方法 ↓↓↓
     # return "&question=%s&questionId=%s&quesTpe=%s"%(question,records[0][0],quesType)
 
