@@ -151,7 +151,7 @@ res = json.loads(res.text)
 total_try = 10
 for _ in range(total_try):
     if res.get("code") == 1006:  # 答题时间过短
-        print(f"答题时间过短，尝试等待10秒，若右侧次数满了但不成功请前往github下载新版({_}/{total_try})")
+        print(f"[{_}/{total_try}] 等待10秒，若右侧次数满了但不成功请前往github下载新版")
         time.sleep(10)
         res = json.loads(utils.imitateExam(examId, logId, userId, answers, token).text)
         continue
