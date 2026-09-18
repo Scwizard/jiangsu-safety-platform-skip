@@ -195,7 +195,7 @@ end_time = time.time()
 elapsed_ms = (end_time - start_time) * 1000
 print(f"execute time: {elapsed_ms:.3f} ms.")
 print("脚本作者:南晓 Scwizard b站同名，欢迎前往github支持作者~")
-print("感谢：ECXiaobai | Leeyus | Mr_Zhen_cn (排名不分先后) 对本项目的贡献")
+print("感谢 (排名不分先后) ：ECXiaobai | Leeyus | Mr_Zhen_cn | BaJie041012 对本项目的贡献")
 print("开源地址：https://github.com/Scwizard/jiangsu-safety-platform-skip")
 if STATS == True:
     try:
