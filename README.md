@@ -22,7 +22,7 @@ jiangsu-safety-platform-skip
 
 作者：南京晓庄学院 Scwizard
 
-感谢：ECXiaobai | Leeyus | Mr_Zhen_cn (排名不分先后) 对本项目的贡献
+感谢 (排名不分先后) ：ECXiaobai | Leeyus | Mr_Zhen_cn | BaJie041012 对本项目的贡献
 
 👌 **给我捐点**
 
