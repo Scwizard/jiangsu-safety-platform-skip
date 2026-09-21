@@ -14,6 +14,8 @@ STATS = True # 脚本用量统计，我们只保存您的脚本最终得分和�
 # 如果您不想开启此功能，请把 True 改成 False
 WAIT_SECONDS = 10
 
+EXAM_WAIT_SECONDS = 255 # 考试最短答题时长:2026-09 平台按题量校验,50 题卷需 250 秒
+
 THREADS = 12 # 课程并行完成的线程数，越大越快，但太大可能被平台风控
 
 VERSION = [1, 0, 9]
@@ -74,9 +76,10 @@ if unfinished == []:
     print("检测到所有课程已经完成，直接进入考试")
 else:
     def finish_course(i):
-        # 单个线程完成一门课程：拿token -> 等待 -> 提交
+        # 单个线程完成一门课程：报学习埋点 -> 拿token -> 等待 -> 提交
         title = table[i]['title']
         print(f"[并行] 正在完成 {title}，等待{WAIT_SECONDS}秒后提交...")
+        utils.markArticleViewed(userId, table[i]["articleId"])  # new:2026-09 平台要求先上报"课件已学完"
         sess = utils.createUnitSession(userId, table[i]["articleId"])  # new:拿到token
         payload = dict(table[i])
         payload["logId"] = sess["logId"]
@@ -144,8 +147,8 @@ for i in questionList:
         utils.end(1)
 print("答案已生成，正在执行imitateExam提交答案...")
 # 平台新增防作弊:token 里带开答时间，不足 = 1006
-print(f"等待最短答题时长 {WAIT_SECONDS} 秒(防作弊校验)...")
-time.sleep(WAIT_SECONDS)
+print(f"等待最短答题时长 {EXAM_WAIT_SECONDS} 秒(防作弊校验)...")
+time.sleep(EXAM_WAIT_SECONDS)
 res = utils.imitateExam(examId, logId, userId, answers, token)
 res = json.loads(res.text)
 total_try = 10

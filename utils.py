@@ -235,6 +235,12 @@ def creatExam(userId):
                           data={"examId": exam_id, "userId": userId}).text
     return json.loads(result)
 
+def markArticleViewed(userId, articleId):
+    # 2026-09 平台新增学习行为埋点:答题前须上报"课件已学完",否则交卷一律报 500 请先完成本课程的学习后再作答
+    result = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/markArticleViewed",
+                          data={"userId": userId, "articleId": articleId}).text
+    return json.loads(result)
+
 def createUnitSession(userId, articleId):
     # 签发token
     try:
