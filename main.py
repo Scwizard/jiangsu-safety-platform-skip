@@ -8,24 +8,23 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Scwizard/HAM:BA4TLH
 # 2025/08/14 (Rebuild at 2026/07/25)
 
-# print("本脚本开源免费，禁止倒卖。") # 卖吧 无所谓了
-
+print("本脚本开源免费，如果您付钱得到了这份脚本，恭喜您被骗了。")
 STATS = True # 脚本用量统计，我们只保存您的脚本最终得分和运行时长，不会记录浏览器指纹、IP地址、客户端信息等内容
 # 如果您不想开启此功能，请把 True 改成 False
-WAIT_SECONDS = 10
+WAIT_SECONDS = 60
 
 EXAM_WAIT_SECONDS = 255 # 考试最短答题时长:2026-09 平台按题量校验,50 题卷需 250 秒
 
 THREADS = 12 # 课程并行完成的线程数，越大越快，但太大可能被平台风控
 
-VERSION = [1, 0, 9]
+VERSION = [1, 1, 2]
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 print("切换到工作目录：", os.getcwd())
 # 修一下目录问题
 # 2026 的时候回来发现还有一些历史遗留问题，需要解决，比如数据库的路径
-print("您正在运行：登录版 (v1.0.9)")
+print("您正在运行：登录版 (v1.1.2)")
 session = utils.session # 统一采用 Session 管理会话继承 cookies
 collegeId = utils.getUserSchool()
 username = str(input("请输入账号：").strip())
