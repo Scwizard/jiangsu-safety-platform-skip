@@ -1,5 +1,7 @@
 import json
 import sqlite3
+import re
+import time
 # import requests
 from requests import Session
 import os
@@ -97,7 +99,7 @@ def getUserSchool():
             schoolName = schoolLs[n]
             for _ in schoolList['data']:
                     if _['name'] == schoolName:
-                        print(f"已获取学校id：{_['id']}")
+                        print(f"已获取学校id：{_['id']} ({_['name']})")
                         return _['id']
 
 
@@ -263,7 +265,7 @@ def getExam(logId,userId):
 def getAnswerById(id):
     # print(f"查询 {id}")
     # 从数据库获取答案然后组装元组
-    conn = sqlite3.connect(os.path.abspath('database.db')) # 2026 修复路径问题，解决找不到tiku的报错
+    conn = sqlite3.connect(os.path.abspath('database_new.db')) # 2026 修复路径问题，解决找不到tiku的报错
     cursor = conn.cursor()
     
     cursor.execute(f'''
@@ -343,3 +345,128 @@ def upload_stats(score, execute_time):
     return resp.json()
     # Example return: 
     # {'status': 'ok', 'message': '记录成功', 'data': {'count': 1, 'score': 100.0, 'runtime_ms': 2369.517}}
+
+def normText(s):
+    """去掉所有空白字符，作为题目文本的稳定键（题目 id 每次抽题都会变，文本才是唯一稳定标识）。"""
+    return re.sub(r"\s+", "", str(s or ""))
+
+def getPracticeAnswers(userId, ah, articleId, wait_seconds=60):
+    """
+    通过"伪装练习"获取某课件下所有题目的答案。
+    流程: markArticleViewed -> 题目列表 -> 创建练习 -> 等待 -> 提交必错答案(判断填2,选择填E) -> 查错题拿正确答案。
+    返回: {题目文本(去空白): (answer, quesType), ...}
+    """
+    def type_code(t):
+        return {"单选": "1", "多选": "2", "判断": "3", "1": "1", "2": "2", "3": "3"}.get(str(t).strip(), "1")
+
+    # 1. 上报课件已学完
+    session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/markArticleViewed",
+                 data={"userId": userId, "articleId": articleId}, timeout=30, verify=False)
+
+    # 2. 题目列表（拿题目数量与题型）
+    r = session.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/question/list",
+                    params={"articleId": articleId, "ah": ah}, timeout=30, verify=False)
+    qlist = (r.json().get("data") or {}).get("list") or []
+    if not qlist:
+        return {}
+
+    # 3. 创建练习会话
+    r = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest/create",
+                     data={"userId": userId, "articleId": articleId}, timeout=30, verify=False)
+    cdata = r.json()
+    if str(cdata.get("code")) != "200":
+        return {}
+    logId = cdata["data"]["logId"]
+    token = cdata["data"]["token"]
+
+    # 4. 构造必错答案表单
+    form = [
+        ("articleId", articleId),
+        ("logId", logId),
+        ("token", token),
+        ("title", "题库学习"),
+        ("userId", userId),
+        ("ah", ah),
+    ]
+    for q in qlist:
+        qid = q.get("id") or q.get("questionId")
+        qt = type_code(q.get("quesType"))
+        if qt == "2":
+            val = "~%s-E" % qid
+        elif qt == "3":
+            val = "%s-2" % qid
+        else:
+            val = "%s-E" % qid
+        form.append(("question", val))
+        form.append(("quesType", qt))
+
+    # 5. 等待防作弊时长后提交（1006 则重试）
+    time.sleep(wait_seconds)
+    submit = {}
+    for attempt in range(20):
+        try:
+            r = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest",
+                             data=form, timeout=60, verify=False)
+            submit = r.json()
+        except Exception:
+            time.sleep(10)
+            continue
+        if str(submit.get("code")) == "200":
+            break
+        time.sleep(15)
+
+    if str(submit.get("code")) != "200":
+        return {}
+
+    errorLogId = (submit.get("data") or {}).get("logId") or logId
+
+    # 6. 查错题，错题里含正确答案
+    r = session.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/wrong/list",
+                    params={"errorLogId": errorLogId, "page": 1, "limit": 500}, timeout=30, verify=False)
+    wdata = (r.json().get("data") or {}) if r.text else {}
+    bank = {}
+    for item in wdata.get("data") or []:
+        q = item.get("question") or {}
+        qid = str(q.get("id") or item.get("questionId") or "").strip()
+        ans = str(q.get("answer") or "").strip()
+        qt = str(q.get("quesType") or "1").strip()
+        text = normText(q.get("question"))
+        # 提取正确答案的选项文本（考试选项会随机打乱，只能按文本匹配）
+        if qt == "3":
+            texts = [ans]
+        elif qt == "2":
+            letters = [ch for ch in ans.upper() if "A" <= ch <= "F"]
+            texts = [normText(q.get("option" + L)) for L in letters]
+            texts = [t for t in texts if t]
+        else:
+            letter = ans.upper().replace(",", "").replace("~", "").strip()[:1]
+            t = normText(q.get("option" + letter))
+            texts = [t] if t else []
+        if qid and texts:
+            bank[qid] = (texts, qt, text)
+    return bank
+
+
+def getAnswerByQuestion(question_text, db="database.db"):
+    """
+    按题目文本从新题库查答案，返回正确答案的选项文本列表。
+    判断题为 ["1"] / ["0"]，单选为 ["正确选项文本"]，多选为多个选项文本。
+    """
+    text = normText(question_text)
+    if not text or not os.path.exists(db):
+        return None
+    conn = sqlite3.connect(os.path.abspath(db))
+    cur = conn.cursor()
+    try:
+        row = cur.execute(
+            "SELECT answer FROM tiku WHERE question = ?", (text,)
+        ).fetchone()
+    except Exception:
+        row = None
+    conn.close()
+    if not row:
+        return None
+    try:
+        return json.loads(row[0])
+    except Exception:
+        return None
