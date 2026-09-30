@@ -8,23 +8,25 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Scwizard/HAM:BA4TLH
 # 2025/08/14 (Rebuild at 2026/07/25)
 
+# print("本脚本开源免费，禁止倒卖。") # 卖吧 无所谓了
+
 print("本脚本开源免费，如果您付钱得到了这份脚本，恭喜您被骗了。")
 STATS = True # 脚本用量统计，我们只保存您的脚本最终得分和运行时长，不会记录浏览器指纹、IP地址、客户端信息等内容
 # 如果您不想开启此功能，请把 True 改成 False
-WAIT_SECONDS = 60
+WAIT_SECONDS = 7 # 默认开 7，再更新考虑加个传参（但我很懒 另外我科目二今天又挂了呜呜呜  - 26/09/30
 
 EXAM_WAIT_SECONDS = 255 # 考试最短答题时长:2026-09 平台按题量校验,50 题卷需 250 秒
 
-THREADS = 12 # 课程并行完成的线程数，越大越快，但太大可能被平台风控
+THREADS = 1 # 课程并行完成的线程数，越大越快，但太大可能被平台风控 -- 2006.09.30实测服务端拒绝异步提交
 
-VERSION = [1, 1, 2]
+VERSION = [1, 1, 3]
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 print("切换到工作目录：", os.getcwd())
 # 修一下目录问题
 # 2026 的时候回来发现还有一些历史遗留问题，需要解决，比如数据库的路径
-print("您正在运行：登录版 (v1.1.2)")
+print("您正在运行：DEV")
 session = utils.session # 统一采用 Session 管理会话继承 cookies
 collegeId = utils.getUserSchool()
 username = str(input("请输入账号：").strip())
@@ -39,17 +41,17 @@ openId = loginResult['data']['openId']
 userId = loginResult['data']['userId']
 print(f"获取到了userId {userId}，开始执行脚本")
 start_time = time.time() # 计时器，启动！
-tiku1 = {"articleId":"2080135073788600321","title":"题库学习","userId":userId,"ah":"","question":"2080136617019842561-1","quesType":"3"}
-tiku2 = {"articleId":"2079132357549375490","title":"入学安全","userId":userId,"ah":"","question":"2079154657984266242-1","quesType":"3"}
-tiku3 = {"articleId":"2079133938168643585","title":"国家安全","userId":userId,"ah":"","question":"2079156723934838786-B","quesType":"1"}
-tiku4 = {"articleId":"2079139032318623745","title":"财物安全","userId":userId,"ah":"","question":"2079446660177477633-1","quesType":"3"}
-tiku5 = {"articleId":"2079140991327027201","title":"心理健康","userId":userId,"ah":"","question":"2079467760328392705-D","quesType":"1"}
-tiku6 = {"articleId":"2079142411614830593","title":"消防安全","userId":userId,"ah":"","question":"2079492272201678850-C","quesType":"1"}
-tiku7 = {"articleId":"2079143452481699842","title":"人身安全","userId":userId,"ah":"","question":"2079527272678703105-1","quesType":"3"}
-tiku8 = {"articleId":"2079144978977669121","title":"交通安全","userId":userId,"ah":"","question":"2079540470853156866-A","quesType":"1"}
-tiku9 = {"articleId":"2079146093836255234","title":"禁毒防艾","userId":userId,"ah":"","question":"2079548501443756034-1","quesType":"3"}
-tiku10 = {"articleId":"2079146628521934850","title":"应急救护","userId":userId,"ah":"","question":"~2079553855799967746-A~2079553855799967746-B~2079553855799967746-C~2079553855799967746-D","quesType":"2"}
-tiku11 = {"articleId":"2079147344531570690","title":"防灾减灾","userId":userId,"ah":"","question":"2079558043292418049-D","quesType":"1"}
+tiku1 = {"articleId":"2080135073788600321","title":"题库学习","userId":userId,"ah":"","question":"1354542128636970126-1","quesType":"3"}
+tiku2 = {"articleId":"2079132357549375490","title":"入学安全","userId":userId,"ah":"","question":"~3692689005690703162-A~3692689005690703162-B~3692689005690703162-C~3692689005690703162-D","quesType":"2"}
+tiku3 = {"articleId":"2079133938168643585","title":"国家安全","userId":userId,"ah":"","question":"~7645910982372274612-A~7645910982372274612-B~7645910982372274612-C~7645910982372274612-D","quesType":"2"}
+tiku4 = {"articleId":"2079139032318623745","title":"财物安全","userId":userId,"ah":"","question":"1901334888623197725-1","quesType":"3"} # 正确
+tiku5 = {"articleId":"2079140991327027201","title":"心理健康","userId":userId,"ah":"","question":"~8298275875081272310-A~8298275875081272310-B~8298275875081272310-C~8298275875081272310-D","quesType":"2"}
+tiku6 = {"articleId":"2079142411614830593","title":"消防安全","userId":userId,"ah":"","question":"~3947659231010179028-A~3947659231010179028-B~3947659231010179028-C~3947659231010179028-D","quesType":"2"}
+tiku7 = {"articleId":"2079143452481699842","title":"人身安全","userId":userId,"ah":"","question":"1495075693595049312-1","quesType":"3"}
+tiku8 = {"articleId":"2079144978977669121","title":"交通安全","userId":userId,"ah":"","question":"3646484785413339749-C","quesType":"1"}
+tiku9 = {"articleId":"2079146093836255234","title":"禁毒防艾","userId":userId,"ah":"","question":"6678652554699427479-1","quesType":"3"}
+tiku10 = {"articleId":"2079146628521934850","title":"应急救护","userId":userId,"ah":"","question":"758225458246106657-C","quesType":"1"}
+tiku11 = {"articleId":"2079147344531570690","title":"防灾减灾","userId":userId,"ah":"","question":"6171488673574768373-0","quesType":"3"}
 
 table = {0:tiku1, 1:tiku2, 2:tiku3, 3:tiku4, 4:tiku5, 5:tiku6, 6:tiku7, 7:tiku8, 8:tiku9, 9:tiku10, 10:tiku11} # 题库映射
 
@@ -77,7 +79,7 @@ else:
     def finish_course(i):
         # 单个线程完成一门课程：报学习埋点 -> 拿token -> 等待 -> 提交
         title = table[i]['title']
-        print(f"[并行] 正在完成 {title}，等待{WAIT_SECONDS}秒后提交...")
+        print(f"[线程] 正在完成 {title}，等待{WAIT_SECONDS}秒后提交...")
         utils.markArticleViewed(userId, table[i]["articleId"])  # new:2026-09 平台要求先上报"课件已学完"
         sess = utils.createUnitSession(userId, table[i]["articleId"])  # new:拿到token
         payload = dict(table[i])
@@ -86,7 +88,7 @@ else:
         time.sleep(WAIT_SECONDS)
         res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=payload).text
         # res = json.loads(res)
-        print(f"[并行] {title} 提交完成")
+        print(f"[线程] {title} 提交完成")
         return i
     with ThreadPoolExecutor(max_workers=THREADS) as executor:
         futures = {executor.submit(finish_course, i): i for i in unfinished}
@@ -95,7 +97,17 @@ else:
             try:
                 future.result()
             except Exception as e:
-                print(f"[并行] {table[i]['title']} 完成时出错: {e}")
+                print(f"[线程] {table[i]['title']} 完成时出错: {e}")
+    # for _ in unfinished:
+    #     title = table[_]['title']
+    #     time.sleep(WAIT_SECONDS)
+    #     payload = dict(table[i])
+    #     sess = utils.createUnitSession(userId, table[i]["articleId"])
+    #     payload["logId"] = sess["logId"]
+    #     payload["token"] = sess["token"]
+    #     res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=payload).text
+    #     print(f"-> {title} 提交完成")
+
     print("课程完成度查询(完成后)：")
     res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list",data={"userId":userId,"collegeId":"1224316234189443073"}).text
     data = json.loads(res)
@@ -124,6 +136,7 @@ except:
     print("脚本运行异常，如果没有完成课程学习，请前往github下载新版...")
     utils.end()
 print("取得考题列表，正在从数据库中读取答案然后整合...")
+# print(examList)
 questions = examList["data"]["data"]
 questionList = []
 data = utils.getExamId(userId)
@@ -135,16 +148,34 @@ if data["code"] == 500:
     print("程序已自动结束，非常抱歉给您带来不便，您可以联系脚本作者！")
     utils.end(1)
 examId = data["data"]["id"]
-for i in range(0,50):
-    questionList.append(questions[i]["questionId"])
+# 考试题目 id 每次组卷随机，按题目文本从 database.db 查答案
 answers = ()
-for i in questionList:
-    try:
-        answers += utils.getAnswerById(i)
-    except:
-        print("err: 数据库读写错误")
-        utils.end(1)
-print("答案已生成，正在执行imitateExam提交答案...")
+miss = 0
+for it in questions:
+    q = it["question"]
+    qid = str(q.get("id") or q.get("questionId"))
+    qt = str(q.get("quesType") or "1").strip()
+    found = utils.getAnswerByQuestion(q.get("question"))  # 正确选项文本列表
+    if not found:
+        miss += 1
+        print(f"[无答案] {str(q.get('question'))[:40]}")
+        continue
+    if qt == "3":
+        val = f"{qid}-{found[0]}"
+    else:
+        # 按选项文本匹配字母（应对考试选项随机）
+        letters = []
+        for L in "ABCDEF":
+            opt = utils.normText(q.get("option" + L) or "")
+            if opt and opt in found:
+                letters.append(L)
+        if qt == "2":
+            val = "".join(f"~{qid}-{x}" for x in letters) or f"~{qid}-A"
+        else:
+            letter = letters[0] if letters else "A"
+            val = f"{qid}-{letter}"
+    answers += (("question", val), ("questionId", qid), ("quesType", qt))
+print(f"答案已生成（缺失 {miss} 题），正在执行imitateExam提交答案...")
 # 平台新增防作弊:token 里带开答时间，不足 = 1006
 print(f"等待最短答题时长 {EXAM_WAIT_SECONDS} 秒(防作弊校验)...")
 time.sleep(EXAM_WAIT_SECONDS)
