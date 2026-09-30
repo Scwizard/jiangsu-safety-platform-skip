@@ -322,7 +322,7 @@ def upload_stats(score, execute_time):
 
 BASE = "http://wap.xiaoyuananquantong.com/guns-vip-main/wap"
 
-ANSWER_BANK_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "题库答案.json")
+ANSWER_BANK_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "answer.json")
 _ANSWER_BANK = None
 _OPT_KEYS = ("optionA", "optionB", "optionC", "optionD", "optionE", "optionF")
 _OPT_LETTERS = "ABCDEF"

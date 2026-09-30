@@ -15,7 +15,7 @@ jiangsu-safety-platform-skip
 ⚙ **基本原理**
 
 按平台现行流程完成课程学习（markArticleViewed -> question/list -> unitTest/create 取凭证 -> unitTest 提交），
-考试题目按【题干 + 正确选项文本】从 题库答案.json 中匹配（平台每份试卷会重新生成题目 ID 并打乱选项顺序）。
+考试题目按【题干 + 正确选项文本】从 answer.json 中匹配（平台每份试卷会重新生成题目 ID 并打乱选项顺序）。
 
 ✒️ **进阶**
 

@@ -71,7 +71,7 @@ echo.
 
 rem 本地现有版本是否完整
 set "LOCAL_OK=0"
-if exist "%APPDIR%\main.py" if exist "%APPDIR%\utils.py" if exist "%APPDIR%\题库答案.json" set "LOCAL_OK=1"
+if exist "%APPDIR%\main.py" if exist "%APPDIR%\utils.py" if exist "%APPDIR%\answer.json" set "LOCAL_OK=1"
 
 rem 读取上次下载时记录的版本
 set "LOCAL_SHA="
@@ -190,7 +190,7 @@ if exist "%APPDIR%\main.py" (
 :skip_download
 if not exist "%APPDIR%\main.py" goto :fail_download
 
-for %%F in ("%APPDIR%\utils.py" "%APPDIR%\题库答案.json") do (
+for %%F in ("%APPDIR%\utils.py" "%APPDIR%\answer.json") do (
     if not exist "%%~F" (echo   警告: 缺少 %%~nxF)
 )
 (echo   项目已就绪: %APPDIR%)

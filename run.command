@@ -335,7 +335,7 @@ else
   fi
 fi
 
-for f in main.py utils.py 题库答案.json; do
+for f in main.py utils.py answer.json; do
   [ -f "$PROJECT/$f" ] || warn "  警告: 缺少 $f"
 done
 say "  项目目录: $PROJECT"
