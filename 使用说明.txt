@@ -73,3 +73,45 @@ Q6: 提示"无法检查更新，保留当前已有的版本"
 
 项目原作者：南京晓庄学院 Scwizard
 本项目地址：https://github.com/Scwizard/jiangsu-safety-platform-skip
+
+
+==========================================
+四、macOS 用法（run.command）
+==========================================
+
+macOS 不用 bat，改用同目录下的 run.command（已带执行权限）。
+
+1. 确保 run.command 和 main.py / utils.py / 题库答案.json 在同一个文件夹里
+   （本仓库下载下来就是这样，直接双击 run.command 即可）。
+
+2. 第一次双击前需要授权一次（从网上下载的文件会被 macOS 打隔离标记、
+   也可能没有执行权限，表现为"没反应"或"来自身份不明的开发者"）。
+   打开「访达 → 应用程序 → 实用工具 → 终端」，把 run.command 拖进终端
+   自动补全路径，然后执行：
+
+       chmod +x <把 run.command 拖到这里>
+       xattr -d com.apple.quarantine <把 run.command 拖到这里>
+
+   或者更省事：右键点 run.command → 选「打开」→ 弹窗里再点「打开」。
+   授权一次之后，以后直接双击即可。
+
+3. 双击 run.command，终端会自动完成 4 步：
+   [1/4] 检查 / 自动安装 Python 3
+   [2/4] 准备项目文件（本目录已有就直接用）
+   [3/4] 在 .venv 里安装依赖库 requests
+   [4/4] 运行 main.py
+
+4. 按提示输入：学校名称、账号、密码（密码不回显是正常的）。
+
+可选参数：
+    ./run.command -u         强制重新下载一份最新的项目文件
+    ./run.command --check    只做环境自检，不运行 main.py
+
+常见问题：
+Q1: 提示需要安装「命令行开发者工具(Command Line Tools)」
+    点「安装」等它装完再重新双击；或者到 python.org 下载安装 Python 3。
+Q2: requests 安装失败
+    脚本会在 .venv 里装（避开系统 pip 限制），先清华镜像、失败回退官方源，
+    仍失败就检查网络后重试。
+Q3: 每次都会重装环境吗？
+    不会。Python、.venv、requests 装好之后会自动跳过。

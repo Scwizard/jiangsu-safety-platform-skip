@@ -14,7 +14,8 @@ jiangsu-safety-platform-skip
 
 ⚙ **基本原理**
 
-通过数据包重放的方式完成课程学习，通过将考题对应答案写入 database.db 中来实现答案获取和处理。
+按平台现行流程完成课程学习（markArticleViewed -> question/list -> unitTest/create 取凭证 -> unitTest 提交），
+考试题目按【题干 + 正确选项文本】从 题库答案.json 中匹配（平台每份试卷会重新生成题目 ID 并打乱选项顺序）。
 
 ✒️ **进阶**
 

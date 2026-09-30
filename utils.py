@@ -1,5 +1,4 @@
 import json
-import sqlite3
 # import requests
 from requests import Session
 import os
@@ -260,45 +259,6 @@ def getExam(logId,userId):
     result = session.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/list?logId=%s&page=1&limit=200&ah=&userId=%s" % (logId,userId)).text
     return json.loads(result)
 
-def getAnswerById(id):
-    # print(f"查询 {id}")
-    # 从数据库获取答案然后组装元组
-    conn = sqlite3.connect(os.path.abspath('database.db')) # 2026 修复路径问题，解决找不到tiku的报错
-    cursor = conn.cursor()
-    
-    cursor.execute(f'''
-    SELECT questionId, answer, quesType 
-    FROM tiku 
-    WHERE questionId is %s
-    ORDER BY questionId
-    '''% id)
-    
-    records = cursor.fetchall()
-    conn.close()
-    
-    # 没有对应答案
-    if not records:
-        print("没找到答案")
-        return ""
-    print(f"从题库查询题目 {id} 类型 {records[0][2]} -> 答案 {records[0][1]}")
-    
-    quesType = records[0][2]
-    if quesType == "2":
-        # 多选
-        question = ""
-        for i in records:
-            question += "~%s-%s" % (i[0],i[1])
-    elif quesType == "1":
-        # 单选
-        question = "%s-%s" % (records[0][0],records[0][1])
-    else:
-        # 判断
-        question = "%s-%s" % (records[0][0],records[0][1])
-    # 重建原始字符串
-    return ("question",question),("questionId",records[0][0]),("quesType",quesType)
-    # 保留了另一种构建完整请求体的方法 ↓↓↓
-    # return "&question=%s&questionId=%s&quesTpe=%s"%(question,records[0][0],quesType)
-
 def getExamId(userId):
     res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/test/getTest",data={"examType":2,"examClass":20,"userId":userId,"ah":""})
     jsonData = json.loads(res.text)
@@ -343,3 +303,148 @@ def upload_stats(score, execute_time):
     return resp.json()
     # Example return: 
     # {'status': 'ok', 'message': '记录成功', 'data': {'count': 1, 'score': 100.0, 'runtime_ms': 2369.517}}
+
+
+# ============================================================================
+#  2026-09 平台改版后的配套实现
+#  ---------------------------------------------------------------------------
+#  改版要点：
+#   1. 完成课程不再靠"重放固定答题包"，而是：
+#        markArticleViewed（上报课件已看）-> question/list（取该文章题目）
+#        -> unitTest/create（签发提交凭证 token）-> unitTest（提交作答）
+#      平台按 5 秒/题 校验作答时长（不足返回 1006），并且 token 只能使用一次。
+#      只要有一题作答正确（isSuccess=true），该文章即被记为已完成。
+#   2. 正式考试的题目与课程练习题是同一批 300 道，但每份试卷会：
+#        - 重新生成题目 ID
+#        - 打乱选项顺序
+#      所以答案必须按【题干 + 选项文本】匹配，不能按 ID 或选项字母。
+# ============================================================================
+
+BASE = "http://wap.xiaoyuananquantong.com/guns-vip-main/wap"
+
+ANSWER_BANK_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "题库答案.json")
+_ANSWER_BANK = None
+_OPT_KEYS = ("optionA", "optionB", "optionC", "optionD", "optionE", "optionF")
+_OPT_LETTERS = "ABCDEF"
+
+
+def loadAnswerBank():
+    """答案库：{题干: [正确选项文本, ...]}；判断题用 正确/错误 表示"""
+    global _ANSWER_BANK
+    if _ANSWER_BANK is None:
+        try:
+            with open(ANSWER_BANK_PATH, encoding="utf-8") as f:
+                _ANSWER_BANK = json.load(f)
+        except Exception:
+            _ANSWER_BANK = {}
+    return _ANSWER_BANK
+
+
+def buildAnswerValue(question, qid, quesType):
+    """
+    根据题干查答案库，再按选项文本回落到当前试卷的字母顺序。
+    返回可直接放进 question 字段的字符串；查不到时返回 None。
+    """
+    text = str(question.get("question") or "").strip()
+    correct = loadAnswerBank().get(text)
+
+    if quesType == "3":                      # 判断：1=正确 0=错误
+        if not correct:
+            return None
+        return "%s-%s" % (qid, "1" if "正确" in correct else "0")
+
+    texts = set(correct or [])
+    if not texts:
+        return None
+    letters = [c for c in _OPT_LETTERS if str(question.get("option" + c) or "").strip() in texts]
+    if not letters:
+        return None
+    if quesType == "2":                      # 多选：~id-A~id-B...
+        return "".join("~%s-%s" % (qid, c) for c in letters)
+    return "%s-%s" % (qid, letters[0])       # 单选
+
+
+def getCourseList(userId, collegeId, courseType):
+    """courseType=2 为江苏新生必修课；courseType=1 为平台其它必修课"""
+    raw = session.post(BASE + "/compulsory/list", data={
+        "name": "", "courseType": str(courseType),
+        "userId": userId, "collegeId": collegeId, "ah": ""
+    }).text
+    try:
+        return json.loads(raw).get("data") or []
+    except Exception:
+        return []
+
+
+def getArticleList(userId, collegeId, courseId):
+    """取某门课下的章节与文章"""
+    raw = session.post(BASE + "/directory/list", data={
+        "name": "", "courseId": courseId,
+        "userId": userId, "collegeId": collegeId, "ah": ""
+    }).text
+    articles = []
+    try:
+        for chapter in json.loads(raw).get("data") or []:
+            for item in chapter.get("list") or []:
+                articles.append(item)
+    except Exception:
+        pass
+    return articles
+
+
+def getArticleQuestions(articleId):
+    """取某篇文章的题目清单（每次调用顺序随机，内容固定）"""
+    raw = session.get(BASE + "/question/list", params={"articleId": articleId, "ah": ""}).text
+    try:
+        return json.loads(raw).get("data", {}).get("list") or []
+    except Exception:
+        return []
+
+
+def markArticleViewedNew(userId, articleId):
+    """上报"课件已学完"（2026-08-28 起平台新增的校验）"""
+    try:
+        return json.loads(session.get(BASE + "/markArticleViewed",
+                                      params={"articleId": articleId, "userId": userId}).text)
+    except Exception:
+        return {"code": None}
+
+
+def submitUnitAnswer(userId, articleId, title, answerPairs, tokenInfo):
+    """
+    提交一篇文章的单元测试。
+    answerPairs: [(question字符串, quesType), ...]
+    tokenInfo:   createUnitSession() 的返回值
+    """
+    data = [("articleId", articleId), ("title", title), ("userId", userId), ("ah", ""),
+            ("logId", tokenInfo.get("logId", "")), ("token", tokenInfo.get("token", ""))]
+    data += answerPairs
+    try:
+        return json.loads(session.post(BASE + "/unitTest", data=data, timeout=30).text)
+    except Exception as e:
+        return {"code": None, "message": "提交异常: %s" % e}
+
+
+def getExamConfig(userId):
+    raw = session.post(BASE + "/test/getTest",
+                       data={"examType": 2, "examClass": 20, "userId": userId, "ah": ""}).text
+    return json.loads(raw)
+
+
+def getExamPaper(logId, userId):
+    raw = session.get(BASE + "/test/list", params={
+        "logId": logId, "page": 1, "limit": 200, "ah": "", "userId": userId}).text
+    try:
+        return json.loads(raw).get("data", {}).get("data") or []
+    except Exception:
+        return []
+
+
+def getWrongQuestions(errorLogId):
+    """错题接口：会返回标准答案（可用于校正/补充答案库）"""
+    raw = session.get(BASE + "/wrong/list",
+                      params={"errorLogId": errorLogId, "page": 1, "limit": 500}).text
+    try:
+        return json.loads(raw).get("data", {}).get("data") or []
+    except Exception:
+        return []

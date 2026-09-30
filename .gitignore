@@ -1,0 +1,14 @@
+# 运行产物 / 本地产物，不要提交
+.venv/
+__pycache__/
+*.pyc
+
+# 双击 .command 时会生成
+_project_version.txt
+jiangsu-safety-platform-skip/
+
+# 证书属于个人资料，不要提交
+certificate_*
+
+# macOS
+.DS_Store
