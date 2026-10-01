@@ -5,6 +5,7 @@ import time
 # import requests
 from requests import Session
 import os
+import threading
 
 # 刮风这天我试过握着你手
 # 但偏偏雨渐渐大到我看你不见
@@ -455,7 +456,7 @@ def getAnswerByQuestion(question_text, db="database.db"):
     text = normText(question_text)
     if not text or not os.path.exists(db):
         return None
-    conn = sqlite3.connect(os.path.abspath(db))
+    conn = sqlite3.connect(os.path.abspath(db), timeout=30)
     cur = conn.cursor()
     try:
         row = cur.execute(
@@ -470,3 +471,104 @@ def getAnswerByQuestion(question_text, db="database.db"):
         return json.loads(row[0])
     except Exception:
         return None
+
+
+def getArticles(userId, collegeId, courseId):
+    try:
+        result = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/directory/list",
+                              data={"name": "", "courseId": courseId, "userId": userId,
+                                    "collegeId": collegeId, "ah": ""}, timeout=30).text
+        data = json.loads(result).get("data") or []
+    except Exception as e:
+        print("获取课件目录异常:", e)
+        return []
+    return [it["id"] for ch in data for it in (ch.get("list") or [])]
+
+
+def getQuestions(articleId):
+    try:
+        result = session.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/question/list",
+                             params={"articleId": articleId, "ah": ""}, timeout=30).text
+        return (json.loads(result).get("data") or {}).get("list") or []
+    except Exception as e:
+        print("获取题目异常:", e)
+        return []
+
+
+def typeCode(t):
+    t = str(t or "1").strip()
+    return {"判断": "3", "单选": "1", "多选": "2"}.get(t, t)
+
+
+def buildUnitAnswers(items):
+    answers = []
+    known = 0
+    for q in items:
+        qid = str(q.get("id") or q.get("questionId"))
+        qt = typeCode(q.get("quesType"))
+        found = getAnswerByQuestion(q.get("question"))
+        if not found:
+            found = ["1"] if qt == "3" else []
+        else:
+            known += 1
+        if qt == "3":
+            val = f"{qid}-{found[0]}"
+        else:
+            letters = []
+            for L in "ABCDEF":
+                opt = normText(q.get("option" + L) or "")
+                if opt and opt in found:
+                    letters.append(L)
+            if qt == "2":
+                val = "".join(f"~{qid}-{x}" for x in letters) or f"~{qid}-A"
+            else:
+                val = f"{qid}-{letters[0] if letters else 'A'}"
+        answers.append(("question", val))
+        answers.append(("quesType", qt))
+    return answers, known
+
+
+_bankLock = threading.Lock()
+
+
+def saveWrongAnswers(errorLogId):
+    if not errorLogId:
+        return 0
+    try:
+        result = session.get("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/wrong/list",
+                             params={"errorLogId": errorLogId, "page": 1, "limit": 500}, timeout=30).text
+        wdata = (json.loads(result).get("data") or {}) if result else {}
+    except Exception as e:
+        print("获取错题异常:", e)
+        return 0
+    rows = []
+    for item in wdata.get("data") or []:
+        q = item.get("question") or {}
+        qid = str(q.get("id") or item.get("questionId") or "").strip()
+        ans = str(q.get("answer") or "").strip()
+        qt = typeCode(q.get("quesType"))
+        text = normText(q.get("question"))
+        if qt == "3":
+            texts = [ans]
+        elif qt == "2":
+            texts = [normText(q.get("option" + L)) for L in ans.upper() if "A" <= L <= "F"]
+            texts = [t for t in texts if t]
+        else:
+            letter = ans.upper().replace(",", "").replace("~", "").strip()[:1]
+            t = normText(q.get("option" + letter))
+            texts = [t] if t else []
+        if not qid or not text or not texts:
+            continue
+        rows.append((qid, text, json.dumps(texts, ensure_ascii=False), qt))
+    if not rows:
+        return 0
+    conn = sqlite3.connect(os.path.abspath("database.db"), timeout=30)
+    cur = conn.cursor()
+    with _bankLock:
+        for qid, text, ans, qt in rows:
+            cur.execute("DELETE FROM tiku WHERE question = ?", (text,))
+            cur.execute("INSERT INTO tiku (questionId, question, answer, quesType) VALUES (?,?,?,?)",
+                        (qid, text, ans, qt))
+        conn.commit()
+    conn.close()
+    return len(rows)
