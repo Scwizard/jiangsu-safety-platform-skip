@@ -17,7 +17,7 @@ WAIT_SECONDS = 7 # 默认开 7，再更新考虑加个传参（但我很懒 另�
 
 EXAM_WAIT_SECONDS = 255 # 考试最短答题时长:2026-09 平台按题量校验,50 题卷需 250 秒
 
-THREADS = 1 # 课程并行完成的线程数，越大越快，但太大可能被平台风控 -- 2006.09.30实测服务端拒绝异步提交
+THREADS = 0
 
 VERSION = [1, 1, 3]
 
@@ -41,75 +41,91 @@ openId = loginResult['data']['openId']
 userId = loginResult['data']['userId']
 print(f"获取到了userId {userId}，开始执行脚本")
 start_time = time.time() # 计时器，启动！
-tiku1 = {"articleId":"2080135073788600321","title":"题库学习","userId":userId,"ah":"","question":"1354542128636970126-1","quesType":"3"}
-tiku2 = {"articleId":"2079132357549375490","title":"入学安全","userId":userId,"ah":"","question":"~3692689005690703162-A~3692689005690703162-B~3692689005690703162-C~3692689005690703162-D","quesType":"2"}
-tiku3 = {"articleId":"2079133938168643585","title":"国家安全","userId":userId,"ah":"","question":"~7645910982372274612-A~7645910982372274612-B~7645910982372274612-C~7645910982372274612-D","quesType":"2"}
-tiku4 = {"articleId":"2079139032318623745","title":"财物安全","userId":userId,"ah":"","question":"1901334888623197725-1","quesType":"3"} # 正确
-tiku5 = {"articleId":"2079140991327027201","title":"心理健康","userId":userId,"ah":"","question":"~8298275875081272310-A~8298275875081272310-B~8298275875081272310-C~8298275875081272310-D","quesType":"2"}
-tiku6 = {"articleId":"2079142411614830593","title":"消防安全","userId":userId,"ah":"","question":"~3947659231010179028-A~3947659231010179028-B~3947659231010179028-C~3947659231010179028-D","quesType":"2"}
-tiku7 = {"articleId":"2079143452481699842","title":"人身安全","userId":userId,"ah":"","question":"1495075693595049312-1","quesType":"3"}
-tiku8 = {"articleId":"2079144978977669121","title":"交通安全","userId":userId,"ah":"","question":"3646484785413339749-C","quesType":"1"}
-tiku9 = {"articleId":"2079146093836255234","title":"禁毒防艾","userId":userId,"ah":"","question":"6678652554699427479-1","quesType":"3"}
-tiku10 = {"articleId":"2079146628521934850","title":"应急救护","userId":userId,"ah":"","question":"758225458246106657-C","quesType":"1"}
-tiku11 = {"articleId":"2079147344531570690","title":"防灾减灾","userId":userId,"ah":"","question":"6171488673574768373-0","quesType":"3"}
 
-table = {0:tiku1, 1:tiku2, 2:tiku3, 3:tiku4, 4:tiku5, 5:tiku6, 6:tiku7, 7:tiku8, 8:tiku9, 9:tiku10, 10:tiku11} # 题库映射
-
-res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list", data={"userId":userId,"collegeId":"1224316234189443073"}).text
+res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list", data={"userId":userId,"collegeId":collegeId}).text
 data = json.loads(res)
 print("正在遍历课程列表，查询完成度：")
 course = data["data"]
 j = 1
-k = 0
 unfinished = []
 for i in course:
     if i["isFinsh"] == True:
         print(f"第{j}课 {i['name']} 已完成")
     else:
-        unfinished.append(k)
+        unfinished.append(i)
         print(f"第{j}课 {i['name']} 未完成")
     j += 1
-    k += 1
 
 process = ()
 # 保留一个turple 但这个东西不太好搞 且没啥实质影响 就不搞了()
 if unfinished == []:
     print("检测到所有课程已经完成，直接进入考试")
 else:
-    def finish_course(i):
-        # 单个线程完成一门课程：报学习埋点 -> 拿token -> 等待 -> 提交
-        title = table[i]['title']
-        print(f"[线程] 正在完成 {title}，等待{WAIT_SECONDS}秒后提交...")
-        utils.markArticleViewed(userId, table[i]["articleId"])  # new:2026-09 平台要求先上报"课件已学完"
-        sess = utils.createUnitSession(userId, table[i]["articleId"])  # new:拿到token
-        payload = dict(table[i])
-        payload["logId"] = sess["logId"]
-        payload["token"] = sess["token"]
-        time.sleep(WAIT_SECONDS)
-        res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=payload).text
-        # res = json.loads(res)
-        print(f"[线程] {title} 提交完成")
-        return i
-    with ThreadPoolExecutor(max_workers=THREADS) as executor:
-        futures = {executor.submit(finish_course, i): i for i in unfinished}
+    def finish_course(c):
+        title = c['name']
+        articles = utils.getArticles(userId, collegeId, c['id'])
+        print(f"[线程] 正在完成 {title}，共 {len(articles)} 篇课件")
+        for articleId in articles:
+            rnd = 0
+            while rnd < 8:
+                rnd += 1
+                items = utils.getQuestions(articleId)
+                if not items:
+                    print(f"[线程] {title} 课件 {articleId} 没有题目，跳过")
+                    break
+                answers, known = utils.buildUnitAnswers(items)
+                utils.markArticleViewed(userId, articleId)
+                sess = utils.createUnitSession(userId, articleId)
+                form = [("articleId", articleId), ("title", title), ("userId", userId), ("ah", ""),
+                        ("logId", sess["logId"]), ("token", sess["token"])] + answers
+                need = max(WAIT_SECONDS, 5 * len(items) + 5)
+                started = time.time()
+                print(f"[线程] {title} 课件 {articleId}:本轮 {len(items)} 题（题库命中 {known}），等待 {need} 秒后提交...")
+                res = {}
+                for _ in range(8):
+                    time.sleep(max(0, need - (time.time() - started)))
+                    try:
+                        res = json.loads(session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest",
+                                                      data=form).text)
+                    except Exception as e:
+                        print(f"[线程] {title} 提交连接异常: {e}")
+                        time.sleep(2)
+                        continue
+                    if res.get("code") == 1006:
+                        need += 20
+                        print(f"[线程] {title} 答题时间过短，再加 20 秒重试...")
+                        continue
+                    if res.get("code") == 1001:
+                        sess = utils.createUnitSession(userId, articleId)
+                        form = [("articleId", articleId), ("title", title), ("userId", userId), ("ah", ""),
+                                ("logId", sess["logId"]), ("token", sess["token"])] + answers
+                        started = time.time()
+                        print(f"[线程] {title} 缺凭证，重新签发会话...")
+                        continue
+                    break
+                d = res.get("data") if isinstance(res.get("data"), dict) else {}
+                if d.get("isSuccess"):
+                    print(f"[线程] {title} 课件 {articleId} 提交完成（{len(items)} 题）")
+                    break
+                n = utils.saveWrongAnswers(d.get("logId"))
+                if not n:
+                    print(f"[线程] {title} 课件 {articleId} 第{rnd}轮未通过,且没拿到错题: {json.dumps(res, ensure_ascii=False)[:160]}")
+                    break
+                print(f"[线程] {title} 课件 {articleId} 第{rnd}轮未过（命中 {known}/{len(items)}），已补 {n} 条进题库，重试...")
+            else:
+                print(f"[线程] {title} 课件 {articleId} 8 轮仍未通过")
+        return c
+    with ThreadPoolExecutor(max_workers=THREADS or len(unfinished)) as executor:
+        futures = {executor.submit(finish_course, c): c for c in unfinished}
         for future in as_completed(futures):
-            i = futures[future]
+            c = futures[future]
             try:
                 future.result()
             except Exception as e:
-                print(f"[线程] {table[i]['title']} 完成时出错: {e}")
-    # for _ in unfinished:
-    #     title = table[_]['title']
-    #     time.sleep(WAIT_SECONDS)
-    #     payload = dict(table[i])
-    #     sess = utils.createUnitSession(userId, table[i]["articleId"])
-    #     payload["logId"] = sess["logId"]
-    #     payload["token"] = sess["token"]
-    #     res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest", data=payload).text
-    #     print(f"-> {title} 提交完成")
+                print(f"[线程] {c['name']} 完成时出错: {e}")
 
     print("课程完成度查询(完成后)：")
-    res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list",data={"userId":userId,"collegeId":"1224316234189443073"}).text
+    res = session.post("http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list",data={"userId":userId,"collegeId":collegeId}).text
     data = json.loads(res)
     course = data["data"]
     j = 1
@@ -154,12 +170,12 @@ miss = 0
 for it in questions:
     q = it["question"]
     qid = str(q.get("id") or q.get("questionId"))
-    qt = str(q.get("quesType") or "1").strip()
+    qt = utils.typeCode(q.get("quesType"))
     found = utils.getAnswerByQuestion(q.get("question"))  # 正确选项文本列表
     if not found:
         miss += 1
         print(f"[无答案] {str(q.get('question'))[:40]}")
-        continue
+        found = ["1"] if qt == "3" else []
     if qt == "3":
         val = f"{qid}-{found[0]}"
     else:
@@ -195,7 +211,10 @@ if not isinstance(res.get("data"), dict):
 score = res["data"]["count"]
 print(f'得分：{score}')
 if int(score) != 100:
+    n = utils.saveWrongAnswers(res["data"].get("logId"))
     print("没到100分，这是一个历史遗留问题，重刷一次就行了，因为题库录入的时候有一题出错了。")
+    if n:
+        print(f"已自动把本次 {n} 条错题答案补进 database.db，直接重跑脚本即可拿满分。")
 else:
     print(f"前往 http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={userId} 下载结课证书")
     # 下载证书(按 userId 命名,多账号互不覆盖;该账号证书已存在则直接复用)
